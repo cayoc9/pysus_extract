@@ -43,40 +43,42 @@ def main():
     
     # Cria a engine de conexão com o PostgreSQL
     engine = create_engine(f'postgresql+psycopg2://{DB_USER}:{DB_PASSWORD_ENCODED}@{DB_HOST}:{DB_PORT}/{DB_NAME}')
-    
+
     # Nome da tabela no banco de dados
-    table_name = 'sih_data'
-    
+    table_name = 'SIH_Serviços_Profissionais'  # Nome da tabela conforme solicitado
+
     try:
-        # Verifica a data mais recente no banco
-        last_date = get_last_date(engine, table_name)
-        logging.info(f"Última data registrada no banco: {last_date}")
+        # Definir o intervalo de anos para baixar
+        start_year = 1992
+        end_year = 2024  # Inclusive
+
+        # Definir os meses (1 a 12)
+        months = list(range(1, 13))
         
-        if last_date is None:
-            # Se não houver dados, baixa os últimos 10 anos
-            end_year = datetime.datetime.now().year
-            start_year = end_year - 10
-            logging.info(f"Baixando dados de {start_year} até {end_year}")
-        else:
-            # Se houver dados, baixa desde a última data até a atual
-            start_year = last_date.year
-            end_year = datetime.datetime.now().year
-            logging.info(f"Baixando dados de {start_year} até {end_year}")
+        # Definir o grupo SIH (apenas 'SP' conforme solicitado)
+        groups = ['SP']
         
-        # Baixar os dados
-        data = fetch_data(start_year, end_year)
+        estado = 'SP'  # Estado de São Paulo
+
+        for year in range(start_year, end_year + 1):
+            logging.info(f"Baixando dados do ano {year} para o estado {estado}")
+
+            # Baixar os dados para o ano especificado
+            data = fetch_data([year], months, groups, estado=estado)
+            
+            if data.empty:
+                logging.info(f"Nenhum dado para o ano {year}")
+                continue  # Passa para o próximo ano
+            
+            # Ajustar o esquema da tabela conforme os dados
+            adjust_table_schema(engine, data, table_name)
+            
+            # Atualizar o banco de dados com os novos dados
+            update_database(engine, data, table_name)
+            
+            logging.info(f"Dados do ano {year} atualizados com sucesso no banco de dados.")
         
-        if data.empty:
-            logging.info("Nenhum dado novo para atualizar.")
-            return
-        
-        # Ajustar o esquema da tabela
-        adjust_table_schema(engine, data, table_name)
-        
-        # Atualizar o banco de dados
-        update_database(engine, data, table_name)
-        
-        logging.info("Banco de dados atualizado com sucesso.")
+        logging.info("Processo de atualização concluído com sucesso.")
         
     except Exception as e:
         logging.error(f"Ocorreu um erro durante a atualização do banco de dados: {e}")

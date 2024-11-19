@@ -23,6 +23,7 @@ bin/
 var/
 *.manifest
 *.spec
+Dockerfile
 
 # Installer logs
 pip-log.txt
