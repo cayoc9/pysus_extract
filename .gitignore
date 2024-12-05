@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -84,3 +85,16 @@ celerybeat-schedule
 # Environement variables
 .env
 .env.*
+=======
+venv/
+__pycache__/
+*.pyc
+*.log
+config.yml  # Se contiver informações sensíveis
+.env
+progresso_download.txt
+parquet_files/
+Analises/pysus_sih/
+parquet_files/
+Analises/SIH_Analise/
+>>>>>>> 495b7d3 (upload SIH e SIA em andamento)

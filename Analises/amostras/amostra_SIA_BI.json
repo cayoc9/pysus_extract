@@ -1,0 +1,706 @@
+    {
+        "CODUNI": {
+            "tipo_dado": "object",
+            "valores_unicos": 2109,
+            "valores_nulos": 0,
+            "amostra_valores": [
+                "2082187",
+                "2077485",
+                "2091771",
+                "2787903",
+                "2093650",
+                "2784580",
+                "9755160",
+                "2035162",
+                "7210833",
+                "6131670"
+            ],
+            "maior_caractere": 7,
+            "menor_caractere": 7,
+            "has_leading_zeros": false,
+            "has_special_chars": false,
+            "has_mixed_types": false
+        },
+        "GESTAO": {
+            "tipo_dado": "object",
+            "valores_unicos": 34,
+            "valores_nulos": 0,
+            "amostra_valores": [
+                "350000",
+                "355030",
+                "350550",
+                "352590",
+                "352900",
+                "352240",
+                "350900",
+                "354850",
+                "354780",
+                "354340"
+            ],
+            "maior_caractere": 6,
+            "menor_caractere": 6,
+            "has_leading_zeros": false,
+            "has_special_chars": false,
+            "has_mixed_types": false
+        },
+        "CONDIC": {
+            "tipo_dado": "object",
+            "valores_unicos": 2,
+            "valores_nulos": 0,
+            "amostra_valores": [
+                "EP",
+                "PG"
+            ],
+            "maior_caractere": 2,
+            "menor_caractere": 2,
+            "has_leading_zeros": false,
+            "has_special_chars": false,
+            "has_mixed_types": false
+        },
+        "UFMUN": {
+            "tipo_dado": "object",
+            "valores_unicos": 33,
+            "valores_nulos": 0,
+            "amostra_valores": [
+                "354340",
+                "355030",
+                "350550",
+                "352590",
+                "352900",
+                "352240",
+                "350900",
+                "351880",
+                "354850",
+                "354780"
+            ],
+            "maior_caractere": 6,
+            "menor_caractere": 6,
+            "has_leading_zeros": false,
+            "has_special_chars": false,
+            "has_mixed_types": false
+        },
+        "TPUPS": {
+            "tipo_dado": "object",
+            "valores_unicos": 26,
+            "valores_nulos": 0,
+            "amostra_valores": [
+                "05",
+                "80",
+                "02",
+                "73",
+                "04",
+                "81",
+                "15",
+                "62",
+                "36",
+                "39"
+            ],
+            "maior_caractere": 2,
+            "menor_caractere": 2,
+            "has_leading_zeros": true,
+            "has_special_chars": false,
+            "has_mixed_types": false
+        },
+        "TIPPRE": {
+            "tipo_dado": "object",
+            "valores_unicos": 1,
+            "valores_nulos": 0,
+            "amostra_valores": [
+                "00"
+            ],
+            "maior_caractere": 2,
+            "menor_caractere": 2,
+            "has_leading_zeros": true,
+            "has_special_chars": false,
+            "has_mixed_types": false
+        },
+        "MN_IND": {
+            "tipo_dado": "object",
+            "valores_unicos": 2,
+            "valores_nulos": 0,
+            "amostra_valores": [
+                "I",
+                "M"
+            ],
+            "maior_caractere": 1,
+            "menor_caractere": 1,
+            "has_leading_zeros": false,
+            "has_special_chars": false,
+            "has_mixed_types": false
+        },
+        "CNPJCPF": {
+            "tipo_dado": "object",
+            "valores_unicos": 448,
+            "valores_nulos": 0,
+            "amostra_valores": [
+                "57722118000140",
+                "61699567000192",
+                "46392130000380",
+                "44780609000104",
+                "45780103000150",
+                "44477909000100",
+                "46634358000177",
+                "46523064000178",
+                "46374500008926",
+                "58198524000119"
+            ],
+            "maior_caractere": 14,
+            "menor_caractere": 14,
+            "has_leading_zeros": false,
+            "has_special_chars": false,
+            "has_mixed_types": false
+        },
+        "CNPJMNT": {
+            "tipo_dado": "object",
+            "valores_unicos": 46,
+            "valores_nulos": 0,
+            "amostra_valores": [
+                "00000000000000",
+                "46392130000380",
+                "44780609000104",
+                "45780103000150",
+                "44477909000100",
+                "46634358000177",
+                "46523064000178",
+                "46374500000194",
+                "46522942000130",
+                "58200015000183"
+            ],
+            "maior_caractere": 14,
+            "menor_caractere": 14,
+            "has_leading_zeros": true,
+            "has_special_chars": false,
+            "has_mixed_types": false
+        },
+        "CNPJ_CC": {
+            "tipo_dado": "object",
+            "valores_unicos": 46,
+            "valores_nulos": 0,
+            "amostra_valores": [
+                "00000000000000",
+                "46392130000380",
+                "24516372000133",
+                "50956440000195",
+                "57722118000140",
+                "47673793010217",
+                "60979457000111",
+                "44780609000104",
+                "46395000000139",
+                "47673793012937"
+            ],
+            "maior_caractere": 14,
+            "menor_caractere": 14,
+            "has_leading_zeros": true,
+            "has_special_chars": false,
+            "has_mixed_types": false
+        },
+        "DT_PROCESS": {
+            "tipo_dado": "object",
+            "valores_unicos": 1,
+            "valores_nulos": 0,
+            "amostra_valores": [
+                "202311"
+            ],
+            "maior_caractere": 6,
+            "menor_caractere": 6,
+            "has_leading_zeros": false,
+            "has_special_chars": false,
+            "has_mixed_types": false
+        },
+        "DT_ATEND": {
+            "tipo_dado": "object",
+            "valores_unicos": 4,
+            "valores_nulos": 0,
+            "amostra_valores": [
+                "202311",
+                "202310",
+                "202308",
+                "202309"
+            ],
+            "maior_caractere": 6,
+            "menor_caractere": 6,
+            "has_leading_zeros": false,
+            "has_special_chars": false,
+            "has_mixed_types": false
+        },
+        "PROC_ID": {
+            "tipo_dado": "object",
+            "valores_unicos": 1158,
+            "valores_nulos": 0,
+            "amostra_valores": [
+                "0302060022",
+                "0302050027",
+                "0202031071",
+                "0205020097",
+                "0211060011",
+                "0206020031",
+                "0202060217",
+                "0202010180",
+                "0202010201",
+                "0202010317"
+            ],
+            "maior_caractere": 10,
+            "menor_caractere": 10,
+            "has_leading_zeros": true,
+            "has_special_chars": false,
+            "has_mixed_types": false
+        },
+        "TPFIN": {
+            "tipo_dado": "object",
+            "valores_unicos": 5,
+            "valores_nulos": 0,
+            "amostra_valores": [
+                "06",
+                "01",
+                "07",
+                "04",
+                "05"
+            ],
+            "maior_caractere": 2,
+            "menor_caractere": 2,
+            "has_leading_zeros": true,
+            "has_special_chars": false,
+            "has_mixed_types": false
+        },
+        "SUBFIN": {
+            "tipo_dado": "object",
+            "valores_unicos": 12,
+            "valores_nulos": 0,
+            "amostra_valores": [
+                "0000",
+                "0071",
+                "0068",
+                "0032",
+                "0062",
+                "0075",
+                "0055",
+                "0073",
+                "0072",
+                "0044"
+            ],
+            "maior_caractere": 4,
+            "menor_caractere": 4,
+            "has_leading_zeros": true,
+            "has_special_chars": false,
+            "has_mixed_types": false
+        },
+        "COMPLEX": {
+            "tipo_dado": "object",
+            "valores_unicos": 4,
+            "valores_nulos": 0,
+            "amostra_valores": [
+                "2",
+                "3",
+                "1",
+                "0"
+            ],
+            "maior_caractere": 1,
+            "menor_caractere": 1,
+            "has_leading_zeros": false,
+            "has_special_chars": false,
+            "has_mixed_types": false
+        },
+        "AUTORIZ": {
+            "tipo_dado": "object",
+            "valores_unicos": 221000,
+            "valores_nulos": 0,
+            "amostra_valores": [
+                "0000000000000",
+                "0000000000001",
+                "0000005252484",
+                "0000005256488",
+                "0000005259680",
+                "0000005243900",
+                "0000005246745",
+                "0000005250784",
+                "0000005241107",
+                "0000005240304"
+            ],
+            "maior_caractere": 13,
+            "menor_caractere": 13,
+            "has_leading_zeros": true,
+            "has_special_chars": false,
+            "has_mixed_types": false
+        },
+        "CNSPROF": {
+            "tipo_dado": "object",
+            "valores_unicos": 41625,
+            "valores_nulos": 0,
+            "amostra_valores": [
+                "703205602373990",
+                "701202041659816",
+                "700507133940051",
+                "701409608287331",
+                "700605485116360",
+                "702005344148489",
+                "705207428018971",
+                "704607660077521",
+                "700508105938456",
+                "702405076732527"
+            ],
+            "maior_caractere": 15,
+            "menor_caractere": 15,
+            "has_leading_zeros": false,
+            "has_special_chars": false,
+            "has_mixed_types": false
+        },
+        "CBOPROF": {
+            "tipo_dado": "object",
+            "valores_unicos": 131,
+            "valores_nulos": 0,
+            "amostra_valores": [
+                "223605",
+                "221205",
+                "225320",
+                "225265",
+                "221105",
+                "223293",
+                "223565",
+                "322205",
+                "223810",
+                "225125"
+            ],
+            "maior_caractere": 6,
+            "menor_caractere": 6,
+            "has_leading_zeros": false,
+            "has_special_chars": false,
+            "has_mixed_types": true
+        },
+        "CIDPRI": {
+            "tipo_dado": "object",
+            "valores_unicos": 7638,
+            "valores_nulos": 0,
+            "amostra_valores": [
+                "G998",
+                "G248",
+                "B24 ",
+                "C509",
+                "N62 ",
+                "Z014",
+                "0000",
+                "Z00 ",
+                "C240",
+                "Z017"
+            ],
+            "maior_caractere": 4,
+            "menor_caractere": 4,
+            "has_leading_zeros": true,
+            "has_special_chars": false,
+            "has_mixed_types": true
+        },
+        "CATEND": {
+            "tipo_dado": "object",
+            "valores_unicos": 6,
+            "valores_nulos": 0,
+            "amostra_valores": [
+                "01",
+                "02",
+                "03",
+                "06",
+                "04",
+                "05"
+            ],
+            "maior_caractere": 2,
+            "menor_caractere": 2,
+            "has_leading_zeros": true,
+            "has_special_chars": false,
+            "has_mixed_types": false
+        },
+        "CNS_PAC": {
+            "tipo_dado": "object",
+            "valores_unicos": 2185607,
+            "valores_nulos": 0,
+            "amostra_valores": [
+                "{{|}}{",
+                "{{{||}|",
+                "}{{~|~||{{{",
+                "{|~~}~|}",
+                "{{}}||",
+                "{{{||~{~~",
+                "{{|}{}",
+                "{{}~}",
+                "{|~~}}}",
+                "{~{{||{"
+            ],
+            "maior_caractere": 15,
+            "menor_caractere": 15,
+            "has_leading_zeros": false,
+            "has_special_chars": true,
+            "has_mixed_types": false
+        },
+        "DTNASC": {
+            "tipo_dado": "object",
+            "valores_unicos": 35979,
+            "valores_nulos": 0,
+            "amostra_valores": [
+                "20100209",
+                "20090323",
+                "19950102",
+                "19630304",
+                "19801008",
+                "19851203",
+                "19791229",
+                "19770515",
+                "19651108",
+                "19771027"
+            ],
+            "maior_caractere": 8,
+            "menor_caractere": 8,
+            "has_leading_zeros": false,
+            "has_special_chars": false,
+            "has_mixed_types": false
+        },
+        "TPIDADEPAC": {
+            "tipo_dado": "object",
+            "valores_unicos": 6,
+            "valores_nulos": 0,
+            "amostra_valores": [
+                "4",
+                "3",
+                "2",
+                "5",
+                "9",
+                "0"
+            ],
+            "maior_caractere": 1,
+            "menor_caractere": 1,
+            "has_leading_zeros": false,
+            "has_special_chars": false,
+            "has_mixed_types": false
+        },
+        "IDADEPAC": {
+            "tipo_dado": "object",
+            "valores_unicos": 100,
+            "valores_nulos": 0,
+            "amostra_valores": [
+                "13",
+                "14",
+                "28",
+                "60",
+                "43",
+                "37",
+                "46",
+                "57",
+                "56",
+                "58"
+            ],
+            "maior_caractere": 2,
+            "menor_caractere": 2,
+            "has_leading_zeros": false,
+            "has_special_chars": false,
+            "has_mixed_types": false
+        },
+        "SEXOPAC": {
+            "tipo_dado": "object",
+            "valores_unicos": 2,
+            "valores_nulos": 0,
+            "amostra_valores": [
+                "F",
+                "M"
+            ],
+            "maior_caractere": 1,
+            "menor_caractere": 1,
+            "has_leading_zeros": false,
+            "has_special_chars": false,
+            "has_mixed_types": false
+        },
+        "RACACOR": {
+            "tipo_dado": "object",
+            "valores_unicos": 5,
+            "valores_nulos": 0,
+            "amostra_valores": [
+                "01",
+                "03",
+                "02",
+                "04",
+                "05"
+            ],
+            "maior_caractere": 2,
+            "menor_caractere": 2,
+            "has_leading_zeros": true,
+            "has_special_chars": false,
+            "has_mixed_types": false
+        },
+        "MUNPAC": {
+            "tipo_dado": "object",
+            "valores_unicos": 3002,
+            "valores_nulos": 0,
+            "amostra_valores": [
+                "354340",
+                "355150",
+                "352430",
+                "355170",
+                "353930",
+                "351740",
+                "350590",
+                "354070",
+                "354290",
+                "351880"
+            ],
+            "maior_caractere": 6,
+            "menor_caractere": 6,
+            "has_leading_zeros": false,
+            "has_special_chars": false,
+            "has_mixed_types": false
+        },
+        "QT_APRES": {
+            "tipo_dado": "object",
+            "valores_unicos": 102,
+            "valores_nulos": 0,
+            "amostra_valores": [
+                "          1",
+                "          2",
+                "          3",
+                "         14",
+                "          5",
+                "          4",
+                "          7",
+                "         13",
+                "         12",
+                "         10"
+            ],
+            "maior_caractere": 11,
+            "menor_caractere": 11,
+            "has_leading_zeros": false,
+            "has_special_chars": false,
+            "has_mixed_types": false
+        },
+        "QT_APROV": {
+            "tipo_dado": "object",
+            "valores_unicos": 102,
+            "valores_nulos": 0,
+            "amostra_valores": [
+                "          1",
+                "          2",
+                "          3",
+                "         14",
+                "          5",
+                "          4",
+                "          7",
+                "         13",
+                "         12",
+                "         10"
+            ],
+            "maior_caractere": 11,
+            "menor_caractere": 11,
+            "has_leading_zeros": false,
+            "has_special_chars": false,
+            "has_mixed_types": false
+        },
+        "VL_APRES": {
+            "tipo_dado": "object",
+            "valores_unicos": 1213,
+            "valores_nulos": 0,
+            "amostra_valores": [
+                "                6.35",
+                "                4.67",
+                "               18.00",
+                "               24.20",
+                "               24.24",
+                "              136.41",
+                "                7.85",
+                "                2.25",
+                "                2.01",
+                "                1.85"
+            ],
+            "maior_caractere": 20,
+            "menor_caractere": 20,
+            "has_leading_zeros": false,
+            "has_special_chars": true,
+            "has_mixed_types": false
+        },
+        "VL_APROV": {
+            "tipo_dado": "object",
+            "valores_unicos": 1213,
+            "valores_nulos": 0,
+            "amostra_valores": [
+                "                6.35",
+                "                4.67",
+                "               18.00",
+                "               24.20",
+                "               24.24",
+                "              136.41",
+                "                7.85",
+                "                2.25",
+                "                2.01",
+                "                1.85"
+            ],
+            "maior_caractere": 20,
+            "menor_caractere": 20,
+            "has_leading_zeros": false,
+            "has_special_chars": true,
+            "has_mixed_types": false
+        },
+        "UFDIF": {
+            "tipo_dado": "object",
+            "valores_unicos": 2,
+            "valores_nulos": 0,
+            "amostra_valores": [
+                "0",
+                "1"
+            ],
+            "maior_caractere": 1,
+            "menor_caractere": 1,
+            "has_leading_zeros": false,
+            "has_special_chars": false,
+            "has_mixed_types": false
+        },
+        "MNDIF": {
+            "tipo_dado": "object",
+            "valores_unicos": 2,
+            "valores_nulos": 0,
+            "amostra_valores": [
+                "0",
+                "1"
+            ],
+            "maior_caractere": 1,
+            "menor_caractere": 1,
+            "has_leading_zeros": false,
+            "has_special_chars": false,
+            "has_mixed_types": false
+        },
+        "ETNIA": {
+            "tipo_dado": "object",
+            "valores_unicos": 86,
+            "valores_nulos": 0,
+            "amostra_valores": [
+                "    ",
+                "0001",
+                "0222",
+                "0059",
+                "0181",
+                "X363",
+                "X290",
+                "0038",
+                "0251",
+                "0172"
+            ],
+            "maior_caractere": 4,
+            "menor_caractere": 4,
+            "has_leading_zeros": true,
+            "has_special_chars": false,
+            "has_mixed_types": true
+        },
+        "NAT_JUR": {
+            "tipo_dado": "object",
+            "valores_unicos": 16,
+            "valores_nulos": 0,
+            "amostra_valores": [
+                "3069",
+                "3999",
+                "1031",
+                "1244",
+                "1023",
+                "2062",
+                "2135",
+                "2232",
+                "2240",
+                "1112"
+            ],
+            "maior_caractere": 4,
+            "menor_caractere": 4,
+            "has_leading_zeros": false,
+            "has_special_chars": false,
+            "has_mixed_types": false
+        }
+    }
