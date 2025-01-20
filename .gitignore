@@ -1,0 +1,12 @@
+venv/
+__pycache__/
+*.pyc
+*.log
+config.yml  # Se contiver informações sensíveis
+.env
+progresso_download.txt
+/logs/
+/log/
+/parquet_files/
+/Analises/pysus_sih
+/Analises/SIH_Analise

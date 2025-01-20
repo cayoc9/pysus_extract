@@ -1,0 +1,508 @@
+{
+    "SP_GESTOR": {
+        "tipo_dado": "object",
+        "valores_unicos": 287,
+        "valores_nulos": 0,
+        "amostra_valores": [
+            "352530",
+            "352590",
+            "350000",
+            "351830",
+            "352470",
+            "350400",
+            "350670",
+            "350920",
+            "350930",
+            "351410"
+        ]
+    },
+    "SP_UF": {
+        "tipo_dado": "object",
+        "valores_unicos": 1,
+        "valores_nulos": 0,
+        "amostra_valores": [
+            "35"
+        ]
+    },
+    "SP_AA": {
+        "tipo_dado": "object",
+        "valores_unicos": 1,
+        "valores_nulos": 0,
+        "amostra_valores": [
+            "2018"
+        ]
+    },
+    "SP_MM": {
+        "tipo_dado": "object",
+        "valores_unicos": 1,
+        "valores_nulos": 0,
+        "amostra_valores": [
+            "01"
+        ]
+    },
+    "SP_CNES": {
+        "tipo_dado": "object",
+        "valores_unicos": 593,
+        "valores_nulos": 0,
+        "amostra_valores": [
+            "2791722",
+            "2786435",
+            "3012212",
+            "6164366",
+            "6878687",
+            "2790602",
+            "2792176",
+            "3126838",
+            "6123740",
+            "3753433"
+        ]
+    },
+    "SP_NAIH": {
+        "tipo_dado": "object",
+        "valores_unicos": 205117,
+        "valores_nulos": 0,
+        "amostra_valores": [
+            "3517131524819",
+            "3517131525501",
+            "3517131525523",
+            "3517131526117",
+            "3517131526140",
+            "3517131526678",
+            "3517131526722",
+            "3518112666574",
+            "3518112666585",
+            "3518112666607"
+        ]
+    },
+    "SP_PROCREA": {
+        "tipo_dado": "object",
+        "valores_unicos": 1396,
+        "valores_nulos": 0,
+        "amostra_valores": [
+            "0303060190",
+            "0303140151",
+            "0303070102",
+            "0303040149",
+            "0308020022",
+            "0303040092",
+            "0305020048",
+            "0305020021",
+            "0303070129",
+            "0305020013"
+        ]
+    },
+    "SP_DTINTER": {
+        "tipo_dado": "object",
+        "valores_unicos": 1339,
+        "valores_nulos": 0,
+        "amostra_valores": [
+            "20171220",
+            "20171227",
+            "20171231",
+            "20171230",
+            "20171226",
+            "20180102",
+            "20180103",
+            "20180101",
+            "20180105",
+            "20180106"
+        ]
+    },
+    "SP_DTSAIDA": {
+        "tipo_dado": "object",
+        "valores_unicos": 184,
+        "valores_nulos": 0,
+        "amostra_valores": [
+            "20180107",
+            "20180112",
+            "20180115",
+            "20180126",
+            "20180111",
+            "20180106",
+            "20180110",
+            "20180105",
+            "20180125",
+            "20180117"
+        ]
+    },
+    "SP_NUM_PR": {
+        "tipo_dado": "object",
+        "valores_unicos": 1,
+        "valores_nulos": 0,
+        "amostra_valores": [
+            "        "
+        ]
+    },
+    "SP_TIPO": {
+        "tipo_dado": "object",
+        "valores_unicos": 1,
+        "valores_nulos": 0,
+        "amostra_valores": [
+            "  "
+        ]
+    },
+    "SP_CPFCGC": {
+        "tipo_dado": "object",
+        "valores_unicos": 846,
+        "valores_nulos": 0,
+        "amostra_valores": [
+            "00000002791722",
+            "00000002786435",
+            "00000003012212",
+            "00000006164366",
+            "00000006878687",
+            "00000002790602",
+            "00000002792176",
+            "00000003126838",
+            "00000006123740",
+            "00000003753433"
+        ]
+    },
+    "SP_ATOPROF": {
+        "tipo_dado": "object",
+        "valores_unicos": 2658,
+        "valores_nulos": 0,
+        "amostra_valores": [
+            "0202010201",
+            "0202010210",
+            "0202010317",
+            "0202010325",
+            "0202010473",
+            "0202010562",
+            "0202010600",
+            "0202010635",
+            "0202010694",
+            "0202020380"
+        ]
+    },
+    "SP_TP_ATO": {
+        "tipo_dado": "object",
+        "valores_unicos": 1,
+        "valores_nulos": 0,
+        "amostra_valores": [
+            "  "
+        ]
+    },
+    "SP_QTD_ATO": {
+        "tipo_dado": "object",
+        "valores_unicos": 330,
+        "valores_nulos": 0,
+        "amostra_valores": [
+            "   1",
+            "   4",
+            "   3",
+            "   8",
+            "   5",
+            "  13",
+            "   2",
+            "  18",
+            "  15",
+            "  11"
+        ]
+    },
+    "SP_PTSP": {
+        "tipo_dado": "object",
+        "valores_unicos": 234,
+        "valores_nulos": 0,
+        "amostra_valores": [
+            "0     ",
+            "100   ",
+            "80    ",
+            "40    ",
+            "265   ",
+            "20    ",
+            "50    ",
+            "60    ",
+            "260   ",
+            "150   "
+        ]
+    },
+    "SP_NF": {
+        "tipo_dado": "object",
+        "valores_unicos": 15443,
+        "valores_nulos": 0,
+        "amostra_valores": [
+            "                    ",
+            "00000000009999999999",
+            "00000000000000048584",
+            "00000000000000016072",
+            "00000000000000048561",
+            "00000000000000015810",
+            "00000000000000060777",
+            "00000000000000307715",
+            "00000000000000060781",
+            "00000000000000060776"
+        ]
+    },
+    "SP_VALATO": {
+        "tipo_dado": "object",
+        "valores_unicos": 27607,
+        "valores_nulos": 0,
+        "amostra_valores": [
+            "          0.00",
+            "         39.94",
+            "        136.41",
+            "         88.00",
+            "         40.00",
+            "        129.52",
+            "         26.79",
+            "         15.00",
+            "        194.88",
+            "        120.00"
+        ]
+    },
+    "SP_M_HOSP": {
+        "tipo_dado": "object",
+        "valores_unicos": 327,
+        "valores_nulos": 0,
+        "amostra_valores": [
+            "352530",
+            "352590",
+            "350170",
+            "351640",
+            "350600",
+            "352220",
+            "355410",
+            "355030",
+            "350970",
+            "350750"
+        ]
+    },
+    "SP_M_PAC": {
+        "tipo_dado": "object",
+        "valores_unicos": 1347,
+        "valores_nulos": 0,
+        "amostra_valores": [
+            "352530",
+            "350790",
+            "350730",
+            "352290",
+            "350680",
+            "350530",
+            "351430",
+            "351410",
+            "352980",
+            "350520"
+        ]
+    },
+    "SP_DES_HOS": {
+        "tipo_dado": "object",
+        "valores_unicos": 2,
+        "valores_nulos": 0,
+        "amostra_valores": [
+            "0",
+            "1"
+        ]
+    },
+    "SP_DES_PAC": {
+        "tipo_dado": "object",
+        "valores_unicos": 2,
+        "valores_nulos": 0,
+        "amostra_valores": [
+            "0",
+            "1"
+        ]
+    },
+    "SP_COMPLEX": {
+        "tipo_dado": "object",
+        "valores_unicos": 2,
+        "valores_nulos": 0,
+        "amostra_valores": [
+            "02",
+            "03"
+        ]
+    },
+    "SP_FINANC": {
+        "tipo_dado": "object",
+        "valores_unicos": 4,
+        "valores_nulos": 0,
+        "amostra_valores": [
+            "06",
+            "01",
+            "04",
+            "07"
+        ]
+    },
+    "SP_CO_FAEC": {
+        "tipo_dado": "object",
+        "valores_unicos": 14,
+        "valores_nulos": 0,
+        "amostra_valores": [
+            "      ",
+            "040032",
+            "040023",
+            "040066",
+            "040049",
+            "040054",
+            "040024",
+            "040028",
+            "040014",
+            "040067"
+        ]
+    },
+    "SP_PF_CBO": {
+        "tipo_dado": "object",
+        "valores_unicos": 93,
+        "valores_nulos": 0,
+        "amostra_valores": [
+            "000000",
+            "225125",
+            "223810",
+            "223605",
+            "223505",
+            "223268",
+            "223710",
+            "225250",
+            "225225",
+            "225112"
+        ]
+    },
+    "SP_PF_DOC": {
+        "tipo_dado": "object",
+        "valores_unicos": 33674,
+        "valores_nulos": 0,
+        "amostra_valores": [
+            "000000000000000",
+            "980016276686285",
+            "706200562980565",
+            "207274375710002",
+            "980016284284832",
+            "704001887260363",
+            "980016280199563",
+            "980016296897966",
+            "980016294344404",
+            "980016289970416"
+        ]
+    },
+    "SP_PJ_DOC": {
+        "tipo_dado": "object",
+        "valores_unicos": 1488,
+        "valores_nulos": 0,
+        "amostra_valores": [
+            "00000002791722",
+            "00000000000000",
+            "54516661002732",
+            "00000002786435",
+            "00000003042340",
+            "10467576000117",
+            "04514207000135",
+            "00000007057725",
+            "00000002063646",
+            "00000002095750"
+        ]
+    },
+    "IN_TP_VAL": {
+        "tipo_dado": "object",
+        "valores_unicos": 5,
+        "valores_nulos": 0,
+        "amostra_valores": [
+            "1",
+            "2",
+            "4",
+            "3",
+            "5"
+        ]
+    },
+    "SEQUENCIA": {
+        "tipo_dado": "object",
+        "valores_unicos": 98862,
+        "valores_nulos": 0,
+        "amostra_valores": [
+            "      531",
+            "      545",
+            "      546",
+            "      566",
+            "      567",
+            "      582",
+            "      583",
+            "      608",
+            "      609",
+            "      610"
+        ]
+    },
+    "REMESSA": {
+        "tipo_dado": "object",
+        "valores_unicos": 287,
+        "valores_nulos": 0,
+        "amostra_valores": [
+            "HM35253001N201801.DTS",
+            "HM35259001N201801.DTS",
+            "HE35000001N201801.DTS",
+            "HM35183001N201801.DTS",
+            "HM35247001N201801.DTS",
+            "HM35040001N201801.DTS",
+            "HM35067001N201801.DTS",
+            "HM35092001N201801.DTS",
+            "HM35093001N201801.DTS",
+            "HM35141001N201801.DTS"
+        ]
+    },
+    "SERV_CLA": {
+        "tipo_dado": "object",
+        "valores_unicos": 95,
+        "valores_nulos": 0,
+        "amostra_valores": [
+            "000000",
+            "121002",
+            "121003",
+            "126004",
+            "126007",
+            "128004",
+            "145003",
+            "142001",
+            "105001",
+            "149015"
+        ]
+    },
+    "SP_CIDPRI": {
+        "tipo_dado": "object",
+        "valores_unicos": 4888,
+        "valores_nulos": 0,
+        "amostra_valores": [
+            "I219",
+            "J189",
+            "K920",
+            "I64 ",
+            "T630",
+            "S063",
+            "N179",
+            "N209",
+            "K810",
+            "N390"
+        ]
+    },
+    "SP_CIDSEC": {
+        "tipo_dado": "object",
+        "valores_unicos": 1,
+        "valores_nulos": 0,
+        "amostra_valores": [
+            "0000"
+        ]
+    },
+    "SP_QT_PROC": {
+        "tipo_dado": "object",
+        "valores_unicos": 330,
+        "valores_nulos": 0,
+        "amostra_valores": [
+            "   1",
+            "   4",
+            "   3",
+            "   8",
+            "   5",
+            "  13",
+            "   2",
+            "  18",
+            "  15",
+            "  11"
+        ]
+    },
+    "SP_U_AIH": {
+        "tipo_dado": "object",
+        "valores_unicos": 2,
+        "valores_nulos": 0,
+        "amostra_valores": [
+            "0",
+            "1"
+        ]
+    }
+}

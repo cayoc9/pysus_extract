@@ -1,0 +1,205 @@
+{
+    "SEQUENCIA": {
+        "tipo_dado": "object",
+        "valores_unicos": 9796,
+        "valores_nulos": 0,
+        "amostra_valores": [
+            "       32",
+            "    72131",
+            "    72139",
+            "    72153",
+            "    72171",
+            "    72186",
+            "    72187",
+            "    72121",
+            "       73",
+            "       35"
+        ]
+    },
+    "REMESSA": {
+        "tipo_dado": "object",
+        "valores_unicos": 57,
+        "valores_nulos": 0,
+        "amostra_valores": [
+            "HM35218001N202401.DTS",
+            "HE35000001N202401.DTS",
+            "HM35234001N202401.DTS",
+            "HM35003001N202401.DTS",
+            "HM35485001N202401.DTS",
+            "HM35055001N202401.DTS",
+            "HM35057001N202401.DTS",
+            "HM35095001N202401.DTS",
+            "HM35021001N202401.DTS",
+            "HM35285001N202401.DTS"
+        ]
+    },
+    "CNES": {
+        "tipo_dado": "object",
+        "valores_unicos": 249,
+        "valores_nulos": 0,
+        "amostra_valores": [
+            "2093227",
+            "2080680",
+            "2023709",
+            "0092894",
+            "2078104",
+            "2078287",
+            "2078511",
+            "2080273",
+            "2080338",
+            "0404853"
+        ]
+    },
+    "AIH": {
+        "tipo_dado": "object",
+        "valores_unicos": 10510,
+        "valores_nulos": 0,
+        "amostra_valores": [
+            "3523118187556",
+            "3523130913203",
+            "3523130918549",
+            "3523130931881",
+            "3524100001543",
+            "3524100006141",
+            "3524100006152",
+            "3523128472556",
+            "3523130220170",
+            "3523130219422"
+        ]
+    },
+    "ANO": {
+        "tipo_dado": "object",
+        "valores_unicos": 1,
+        "valores_nulos": 0,
+        "amostra_valores": [
+            "2024"
+        ]
+    },
+    "MES": {
+        "tipo_dado": "object",
+        "valores_unicos": 1,
+        "valores_nulos": 0,
+        "amostra_valores": [
+            "01"
+        ]
+    },
+    "DT_INTER": {
+        "tipo_dado": "object",
+        "valores_unicos": 268,
+        "valores_nulos": 0,
+        "amostra_valores": [
+            "20231209  ",
+            "20231224  ",
+            "20231226  ",
+            "20231229  ",
+            "20240101  ",
+            "20240103  ",
+            "20231231  ",
+            "20231220  ",
+            "20231217  ",
+            "20231218  "
+        ]
+    },
+    "DT_SAIDA": {
+        "tipo_dado": "object",
+        "valores_unicos": 183,
+        "valores_nulos": 0,
+        "amostra_valores": [
+            "20231211  ",
+            "20240108  ",
+            "20240105  ",
+            "20240102  ",
+            "20240103  ",
+            "20240104  ",
+            "20240111  ",
+            "20231221  ",
+            "20231219  ",
+            "20231227  "
+        ]
+    },
+    "MUN_MOV": {
+        "tipo_dado": "object",
+        "valores_unicos": 107,
+        "valores_nulos": 0,
+        "amostra_valores": [
+            "352180",
+            "353060",
+            "352340",
+            "351050",
+            "352250",
+            "355030",
+            "352044",
+            "354780",
+            "351880",
+            "350950"
+        ]
+    },
+    "UF_ZI": {
+        "tipo_dado": "object",
+        "valores_unicos": 57,
+        "valores_nulos": 0,
+        "amostra_valores": [
+            "352180",
+            "350000",
+            "352340",
+            "350030",
+            "354850",
+            "350550",
+            "350570",
+            "350950",
+            "350210",
+            "352850"
+        ]
+    },
+    "MUN_RES": {
+        "tipo_dado": "object",
+        "valores_unicos": 481,
+        "valores_nulos": 0,
+        "amostra_valores": [
+            "352180",
+            "355250",
+            "353060",
+            "355030",
+            "351830",
+            "350710",
+            "350190",
+            "351907",
+            "352340",
+            "353650"
+        ]
+    },
+    "UF_RES": {
+        "tipo_dado": "object",
+        "valores_unicos": 21,
+        "valores_nulos": 0,
+        "amostra_valores": [
+            "35",
+            "50",
+            "31",
+            "26",
+            "29",
+            "43",
+            "33",
+            "11",
+            "14",
+            "52"
+        ]
+    },
+    "CO_ERRO": {
+        "tipo_dado": "object",
+        "valores_unicos": 114,
+        "valores_nulos": 0,
+        "amostra_valores": [
+            "060051",
+            "060055",
+            "060072",
+            "060204",
+            "060120",
+            "050098",
+            "060110",
+            "060065",
+            "060084",
+            "060205"
+        ]
+    }
+}
