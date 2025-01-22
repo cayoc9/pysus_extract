@@ -1,6 +1,5 @@
 # main.py
 
-<<<<<<< HEAD
 import logging
 import os
 import datetime
@@ -86,15 +85,4 @@ def main():
         return
 
 if __name__ == '__main__':
-=======
-from modulos.upload_manager import upload_all_data_parallel
-
-def main():
-    # Outras operações (download, validação, etc.)
-    
-    # Realizar o upload dos dados de forma paralela
-    upload_all_data_parallel()
-
-if __name__ == "__main__":
->>>>>>> 495b7d3 (upload SIH e SIA em andamento)
     main()

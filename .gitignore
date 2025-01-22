@@ -84,3 +84,4 @@ celerybeat-schedule
 # Environement variables
 .env
 .env.*
+/my-fastapi-datasus/*

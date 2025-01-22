@@ -33,27 +33,27 @@ engine = create_engine(DATABASE_URL, pool_size=10, max_overflow=20)
 
 BASE_PATH = "parquet_files/SIH/"
 GRUPOS_INFO = {
-    # "RD": {
-    #     "tabela": "sih_aih_reduzida",
-    #     "colunas":  [
-    #         "VAL_SADTSR", "VAL_TRANSP", "VAL_OBSANG", "VAL_PED1AC", "VAL_TOT", 
-    #         "GESTOR_DT", "VAL_UTI", "US_TOT", "INFEHOSP", "DT_INTER", "DT_SAIDA", 
-    #         "UTI_MES_IN", "UTI_MES_AN", "UTI_MES_AL", "UTI_MES_TO", "MES_CMPT", 
-    #         "UTI_INT_IN", "SEQUENCIA", "UTI_INT_AN", "UTI_INT_AL", "UTI_INT_TO", 
-    #         "VAL_SH_FED", "VAL_SP_FED", "VAL_SH_GES", "VAL_SP_GES", "VAL_UCI", "COD_IDADE", 
-    #         "IDADE", "DIAS_PERM", "MORTE", "NACIONAL", "DIAR_ACOM", "QT_DIARIAS", "TOT_PT_SP", 
-    #         "NASC", "HOMONIMO", "NUM_FILHOS", "ANO_CMPT", "VAL_SH", "VAL_SP", "VAL_SADT", "VAL_RN",
-    #         "VAL_ACOMP", "VAL_ORTP", "VAL_SANGUE", "ETNIA", "REMESSA", "AUD_JUST", "SIS_JUST",
-    #         "MARCA_UCI", "DIAGSEC1", "DIAGSEC2", "DIAGSEC3", "DIAGSEC4", "DIAGSEC5", "DIAGSEC6", "DIAGSEC7", 
-    #         "DIAGSEC8", "DIAGSEC9", "TPDISEC1", "TPDISEC2", "TPDISEC3", "TPDISEC4", "TPDISEC5", "TPDISEC6", 
-    #         "TPDISEC7", "TPDISEC8", "TPDISEC9", "id_log", "UF_ZI", "ESPEC", "CGC_HOSP", "N_AIH", "IDENT", 
-    #         "CEP", "MUNIC_RES", "SEXO", "MARCA_UTI", "PROC_SOLIC", "PROC_REA", "DIAG_PRINC", "DIAG_SECUN", 
-    #         "COBRANCA", "NATUREZA", "NAT_JUR", "GESTAO", "RUBRICA", "IND_VDRL", "MUNIC_MOV", "NUM_PROC", 
-    #         "CAR_INT", "CPF_AUT", "INSTRU", "CID_NOTIF", "CONTRACEP1", "CONTRACEP2", "GESTRISCO", "INSC_PN",
-    #         "SEQ_AIH5", "CBOR", "CNAER", "VINCPREV", "GESTOR_COD", "GESTOR_TP", "GESTOR_CPF", "CNES", "CNPJ_MANT",
-    #         "CID_ASSO", "CID_MORTE", "COMPLEX", "FINANC", "FAEC_TP", "REGCT", "RACA_COR"
-    #     ]
-    # },
+    "RD": {
+        "tabela": "sih_aih_reduzida",
+        "colunas":  [
+            "VAL_SADTSR", "VAL_TRANSP", "VAL_OBSANG", "VAL_PED1AC", "VAL_TOT", 
+            "GESTOR_DT", "VAL_UTI", "US_TOT", "INFEHOSP", "DT_INTER", "DT_SAIDA", 
+            "UTI_MES_IN", "UTI_MES_AN", "UTI_MES_AL", "UTI_MES_TO", "MES_CMPT", 
+            "UTI_INT_IN", "SEQUENCIA", "UTI_INT_AN", "UTI_INT_AL", "UTI_INT_TO", 
+            "VAL_SH_FED", "VAL_SP_FED", "VAL_SH_GES", "VAL_SP_GES", "VAL_UCI", "COD_IDADE", 
+            "IDADE", "DIAS_PERM", "MORTE", "NACIONAL", "DIAR_ACOM", "QT_DIARIAS", "TOT_PT_SP", 
+            "NASC", "HOMONIMO", "NUM_FILHOS", "ANO_CMPT", "VAL_SH", "VAL_SP", "VAL_SADT", "VAL_RN",
+            "VAL_ACOMP", "VAL_ORTP", "VAL_SANGUE", "ETNIA", "REMESSA", "AUD_JUST", "SIS_JUST",
+            "MARCA_UCI", "DIAGSEC1", "DIAGSEC2", "DIAGSEC3", "DIAGSEC4", "DIAGSEC5", "DIAGSEC6", "DIAGSEC7", 
+            "DIAGSEC8", "DIAGSEC9", "TPDISEC1", "TPDISEC2", "TPDISEC3", "TPDISEC4", "TPDISEC5", "TPDISEC6", 
+            "TPDISEC7", "TPDISEC8", "TPDISEC9", "id_log", "UF_ZI", "ESPEC", "CGC_HOSP", "N_AIH", "IDENT", 
+            "CEP", "MUNIC_RES", "SEXO", "MARCA_UTI", "PROC_SOLIC", "PROC_REA", "DIAG_PRINC", "DIAG_SECUN", 
+            "COBRANCA", "NATUREZA", "NAT_JUR", "GESTAO", "RUBRICA", "IND_VDRL", "MUNIC_MOV", "NUM_PROC", 
+            "CAR_INT", "CPF_AUT", "INSTRU", "CID_NOTIF", "CONTRACEP1", "CONTRACEP2", "GESTRISCO", "INSC_PN",
+            "SEQ_AIH5", "CBOR", "CNAER", "VINCPREV", "GESTOR_COD", "GESTOR_TP", "GESTOR_CPF", "CNES", "CNPJ_MANT",
+            "CID_ASSO", "CID_MORTE", "COMPLEX", "FINANC", "FAEC_TP", "REGCT", "RACA_COR"
+        ]
+    },
     "RJ": {
         "tabela": "sih_aih_rejeitada",
         "colunas": [
@@ -79,28 +79,28 @@ GRUPOS_INFO = {
             "proc_solic", "raca_cor",
             "regct", "rubrica", "sexo"
         ]
-    }
-#     "ER": {
-#         "tabela": "sih_aih_rejeitada_erro",
-#         "colunas": [
-#             "SEQUENCIA", "ANO", "MES", "DT_INTER", 
-#             "DT_SAIDA", "UF_RES", "CO_ERRO", "id_log", 
-#             "MUN_MOV", "UF_ZI", "REMESSA", "CNES", "AIH", "MUN_RES"
-#         ]
-# },
-#     "SP": {
-#         "tabela": "sih_servicos_profissionais",
-#         "colunas": [
-#             "sp_uf", "sp_procrea", "sp_gestor",
-#             "sp_aa", "sp_mm", "sp_cnes", "sp_naih", "sp_dtinter",
-#             "sp_dtsaida", "sp_num_pr", "sp_tipo", "sp_cpfcgc", "sp_atoprof",
-#             "sp_tp_ato", "sp_qtd_ato", "sp_ptsp", "sp_nf", "sp_valato",
-#             "sp_m_hosp", "sp_m_pac", "sp_des_hos", "sp_des_pac", "sp_complex",
-#             "sp_financ", "sp_co_faec", "sp_pf_cbo", "sp_pf_doc", "sp_pj_doc",
-#             "in_tp_val", "sequencia", "remessa", "serv_cla", "sp_cidpri",
-#             "sp_cidsec", "sp_qt_proc", "sp_u_aih", "id_log"
-#         ]
-#     }
+    },
+    "ER": {
+         "tabela": "sih_aih_rejeitada_erro",
+         "colunas": [
+             "SEQUENCIA", "ANO", "MES", "DT_INTER", 
+             "DT_SAIDA", "UF_RES", "CO_ERRO", "id_log", 
+             "MUN_MOV", "UF_ZI", "REMESSA", "CNES", "AIH", "MUN_RES"
+         ]
+    },
+    "SP": {
+         "tabela": "sih_servicos_profissionais",
+         "colunas": [
+             "sp_uf", "sp_procrea", "sp_gestor",
+             "sp_aa", "sp_mm", "sp_cnes", "sp_naih", "sp_dtinter",
+             "sp_dtsaida", "sp_num_pr", "sp_tipo", "sp_cpfcgc", "sp_atoprof",
+             "sp_tp_ato", "sp_qtd_ato", "sp_ptsp", "sp_nf", "sp_valato",
+             "sp_m_hosp", "sp_m_pac", "sp_des_hos", "sp_des_pac", "sp_complex",
+             "sp_financ", "sp_co_faec", "sp_pf_cbo", "sp_pf_doc", "sp_pj_doc",
+             "in_tp_val", "sequencia", "remessa", "serv_cla", "sp_cidpri",
+             "sp_cidsec", "sp_qt_proc", "sp_u_aih", "id_log"
+         ]
+     }
 }
 
 
