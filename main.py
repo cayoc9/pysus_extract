@@ -4,10 +4,13 @@ import logging
 import os
 import datetime
 from dotenv import load_dotenv
-from data_fetcher import fetch_data
-from database_utils import get_last_date, update_database, adjust_table_schema
+from api.utils.data_fetcher import fetch_data
+from api.utils.database_utils import get_last_date, update_database, adjust_table_schema
 from sqlalchemy import create_engine
 from urllib.parse import quote_plus
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from api.routes.unified_routes import router as api_router
 
 def main():
     # Garantir que o diretório 'logs' existe
@@ -84,5 +87,20 @@ def main():
         logging.error(f"Ocorreu um erro durante a atualização do banco de dados: {e}")
         return
 
-if __name__ == '__main__':
-    main()
+app = FastAPI(title="DataSUS API")
+
+# Configuração CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Rotas
+app.include_router(api_router)
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)

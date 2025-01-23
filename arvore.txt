@@ -1,128 +1,48 @@
 .
-├── alembic
-│   ├── env.py
-│   ├── __pycache__
-│   │   └── env.cpython-310.pyc
-│   ├── README
-│   ├── script.py.mako
-│   └── versions
-│       ├── 42ee8e13a777_renomear_sih_si_sp_para_sih_serviços_.py
-│       ├── 7f840b9e0a85_initial_migration.py
-│       ├── 9e60e47745f1_create_serviços_profissionais_table_and_.py
-│       └── __pycache__
-│           ├── 42ee8e13a777_renomear_sih_si_sp_para_sih_serviços_.cpython-310.pyc
-│           ├── 7f840b9e0a85_initial_migration.cpython-310.pyc
-│           └── 9e60e47745f1_create_serviços_profissionais_table_and_.cpython-310.pyc
-├── alembic.ini
-├── Analises
-│   ├── colunas_rj.txt
-│   ├── consultas.ipynb
-│   └── SIH_Analise
-│── arvore.txt
-├── config.yml
-├── log
-│   ├── download_data.log
-│   ├── sia_data_download.log
-│   ├── upload_sih_data.log
-│   └── upload_specific.log
-├── main.py
-├── models
-│   ├── __init__.py
-│   ├── __pycache__
-│   │   ├── __init__.cpython-310.pyc
-│   │   ├── sih_er.cpython-310.pyc
-│   │   ├── sih_rd.cpython-310.pyc
-│   │   ├── sih_rj.cpython-310.pyc
-│   │   └── sih_sp.cpython-310.pyc
-│   ├── sih_er.py
-│   ├── sih_rd.py
-│   ├── sih_rj.py
-│   └── sih_sp.py
-├── modulos
-│   ├── data_validation.py
-│   ├── db_utils.py
-│   ├── download_manager.py
-│   ├── error_handler.py
-│   ├── parquet_processing.py
-│   ├── update_table.py
-│   └── upload_manager.py
-├── parquet_files
-│   ├── SIA
-│   │   ├── AB
-│   │   │   ├── ABDF1112.parquet
-│   │   │   │   └── cddeb9dc1b194299b2547e7c7b896650-0.parquet
-│   │   │   │   │   ...
-│   │   │   │   └── ef959aeebe3a4becbb9fe9b4130b5201-0.parquet
-│   │   │   └── ABOTO1812.parquet
-│   │   │       └── a80c3ed21d2948ad9af14d957865695e-0.parquet
-│   │   ├── ACF
-│   │   ├── AD
-│   │   ├── AM
-│   │   ├── AMP
-│   │   ├── AN
-│   │   ├── AQ
-│   │   ├── AR
-│   │   ├── ATD
-│   │   ├── BI
-│   │   ├── IMPBO
-│   │   ├── PA
-│   │   ├── PS
-│   │   └── SAD
-│   └── SIH
-│       ├── ER
-│       │   ├── ERAC1101.parquet
-│       │   │   └── 643ecfced8fa4a77a9349d3b89193a02-0.parquet
-│       │   ├──  ....
-│       │   └── ERTO2409.parquet
-│       │       └── ccd39368efa4466483b7cac0b105429a-0.parquet
-│       ├── RD
-│       ├── RJ
-│       ├── SP   
-│       │   │   ...
-│           └── SPSP9912.parquet
-│               ├── 002ab2b0316a4512a0d5e291e7236646-0.parquet
-│               ├── 005faa48e3084c00a4e9cabc184cf3b8-0.parquet
-│               ├── 006e4d80f0124f7b915eb511334dbde5-0.parquet
-│               ├── 007269a29ea143d0b12ada4fbbc555f2-0.parquet
-│               ├── 04461f4c485a40338fddb25629f21a9d-0.parquet
-│               ├── 05d79dff400d426598e069b68203ecc7-0.parquet
-│               ├── 0a443ae221044a088431ae5eedba93da-0.parquet
-│               ├── 0b64c4fc64784ed0a3fea608d8290550-0.parquet
-│               ├── 1a58bf8552d64ee49d617155854d5f6a-0.parquet
-│               ├── 2289d56fd07c4e16bea12a6c0923832f-0.parquet
-│               ├── 27ee4f5465554e5b8b74f80300f02a26-0.parquet
-│               ├── 2917198baebf450384d86ba28d02df5c-0.parquet
-│               ├── 2eee32f55a5d4dc3b3d62b661e7da4c5-0.parquet
-│               ├── 34c6dde2abd4485289a4af9c61c16e29-0.parquet
-│               ├── 410e761c6ff24c978fbcfa03330feb9f-0.parquet
-│               ├── 4d5b3c3119994b6e8214a30b41bafaba-0.parquet
-│               ├── 506e30c4f51f41b58c9f61ef850f9115-0.parquet
-│               ├── 63ea824027e24f28b78175f15155f397-0.parquet
-│               ├── 71cd3214d270487688d35096ad16b6eb-0.parquet
-│               ├── 7a2bf55c870a486f92b31d7d10431f7a-0.parquet
-│               ├── 8913a22aa5e347709b7ef03b21489c01-0.parquet
-│               ├── 8f2183efcfc6460cb66954f31e114971-0.parquet
-│               ├── 8f30833e979c455594bca24657b1cc4f-0.parquet
-│               ├── 974c40e8940d45c587e957dc25bb9d93-0.parquet
-│               ├── ab97036dfda14dd08dbae1abb8ea1118-0.parquet
-│               ├── aedffd9aae5c426dae2bb97bb26b742a-0.parquet
-│               ├── b1e0b24c780f483f8358304305ca470d-0.parquet
-│               ├── c08308bcb87f4f77916c6965479ebbff-0.parquet
-│               ├── cac19e9a027c46b7a99f621c9b7b540a-0.parquet
-│               ├── d788bd6f72374573a34b765a571918d0-0.parquet
-│               ├── dac3df6b04b34b8e9c1a38b6148e0e1b-0.parquet
-│               ├── de2979a4d9a64212845d9211da154090-0.parquet
-│               ├── df73a68ec0c14fe3a7867980a2d1a917-0.parquet
-│               ├── e5fc144eef7e4a9298b561358a8ee404-0.parquet
-│               ├── ee5ecb36d27846c68c79a663643bf10e-0.parquet
-│               ├── f3ba5f77ffe44485ae1ec74c6e4681a3-0.parquet
-│               └── fc3cae85e4d64589ac4b649f7b4af3bf-0.parquet
-├── requirements.txt
-├── upload_specific.py
-└── venv
-    ├── bin
-    ├── lib64 -> lib
-    ├── pyvenv.cfg
-    └── share
-
-31440 directories, 136103 files
+├── alembic/                     # Diretório de migrações do banco de dados
+│   ├── env.py                  # Configurações do ambiente Alembic
+│   ├── versions/               # Arquivos de migração
+│   ├── README                  
+│   └── script.py.mako          # Template para novas migrações
+│
+├── Analises/                    # Diretório para análises e consultas
+│   ├── colunas_rj.txt
+│   ├── consultas.ipynb
+│   └── SIH_Analise/
+│
+├── logs/                        # Diretório de logs da aplicação
+│   ├── download_data.log
+│   ├── sia_data_download.log
+│   ├── upload_sih_data.log
+│   └── upload_specific.log
+│
+├── models/                      # Modelos SQLAlchemy
+│   ├── __init__.py
+│   ├── sih_er.py
+│   ├── sih_rd.py
+│   ├── sih_rj.py
+│   └── sih_sp.py
+│
+├── modulos/                     # Módulos auxiliares
+│   ├── data_validation.py
+│   ├── db_utils.py
+│   ├── download_manager.py
+│   ├── error_handler.py
+│   ├── parquet_processing.py
+│   ├── update_table.py
+│   └── upload_manager.py
+│
+├── parquet_files/               # Arquivos de dados
+│   ├── SIA/                    # Dados do SIA
+│   │   └── [diversos grupos]
+│   └── SIH/                    # Dados do SIH
+│       ├── ER/
+│       ├── RD/
+│       ├── RJ/
+│       └── SP/
+│
+├── alembic.ini                  # Configuração do Alembic
+├── config.yml                   # Configurações gerais
+├── main.py                     # Script principal
+├── requirements.txt            # Dependências do projeto
+└── upload_specific.py          # Script para uploads específicos

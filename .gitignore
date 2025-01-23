@@ -85,3 +85,5 @@ celerybeat-schedule
 .env
 .env.*
 /my-fastapi-datasus/*
+/parquet_files
+/Analises/pysus_sih
