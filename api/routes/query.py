@@ -25,7 +25,6 @@ async def query_data(
             competencia_inicio=params.competencia_inicio,
             competencia_fim=params.competencia_fim
         )
-        
         if df.empty:
             raise HTTPException(status_code=404, detail="Dados não encontrados")
             

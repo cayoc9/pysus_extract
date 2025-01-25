@@ -105,7 +105,6 @@ GRUPOS_INFO = {
 
 
 
-
 ESTADOS = ["PR", "SP"]  # Estados que devem ser processados
 ANOS = range(2018, 2025)
 

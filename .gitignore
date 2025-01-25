@@ -84,6 +84,9 @@ celerybeat-schedule
 # Environement variables
 .env
 .env.*
-/my-fastapi-datasus/*
 /parquet_files
 /Analises/pysus_sih
+/consultas
+
+# Temporarios
+arvore.txt
