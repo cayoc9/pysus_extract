@@ -1,0 +1,19 @@
+{
+    "CNES_ER": {
+        "aih": "BIGINT",
+        "ano": "SMALLINT",
+        "cnes": "TEXT",
+        "co_erro": "TEXT",
+        "dt_inter": "TEXT",
+        "dt_saida": "TEXT",
+        "id_log": "VARCHAR(255)",
+        "mes": "TEXT",
+        "mun_mov": "INTEGER",
+        "mun_res": "INTEGER",
+        "remessa": "CHAR(21)",
+        "sequencia": "INTEGER",
+        "uf": "CHAR(2)",
+        "uf_res": "SMALLINT",
+        "uf_zi": "INTEGER"
+    }
+}
