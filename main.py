@@ -124,6 +124,7 @@ class QueryParams(BaseModel):
     campos_agrupamento: List[str]
     competencia_inicio: str
     competencia_fim: str
+    table_name: str | None = None  # Campo opcional para nome da tabela
     
     @field_validator('base')
     def validate_base(cls, v):
@@ -400,10 +401,10 @@ async def query_data(params: QueryParams) -> Dict[str, Any]:
             logging.warning(f"[query_data] {msg}")
             raise HTTPException(status_code=404, detail=msg)
         
-        # 3) Mapeia o grupo para um nome descritivo
-        grupo_mapped = grupos_dict.get(params.grupo, params.grupo)  # se não achar, retorna o próprio grupo
-        # Formato final da tabela: base em lower + '_' + grupo_mapped em lower
-        table_name = f"{params.base.lower()}_{grupo_mapped.lower()}"
+        # 3) Mapeia o grupo para um nome descritivo e define nome da tabela
+        grupo_mapped = grupos_dict.get(params.grupo, params.grupo)
+        # Usa o nome da tabela fornecido ou gera um nome padrão
+        table_name = params.table_name if params.table_name else f"{params.base.lower()}_{grupo_mapped.lower()}"
         
         # 4) Salva os resultados
         save_results(result_df, table_name)
