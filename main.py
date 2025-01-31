@@ -343,7 +343,6 @@ app.add_middleware(
 # ---------------------------------------------------------------------------
 @app.post("/query")
 async def query_data(params: QueryParams) -> Dict[str, Any]:
-    log_execution("Iniciando processamento de requisição")
     """
     Endpoint para consulta de dados do DataSUS.
     
@@ -357,7 +356,8 @@ async def query_data(params: QueryParams) -> Dict[str, Any]:
         "cnes_list": ["2077485", "2077493"],
         "campos_agrupamento": ["CNES", "ANO_CMPT", "MES_CMPT"],
         "competencia_inicio": "01/2022",
-        "competencia_fim": "12/2022"
+        "competencia_fim": "12/2022",
+        "table_name": "sih_rd_2022"  
     }
     ```
     
@@ -371,10 +371,15 @@ async def query_data(params: QueryParams) -> Dict[str, Any]:
         "cnes_list": ["2077485"],
         "campos_agrupamento": ["CNES", "PROC_ID"],
         "competencia_inicio": "06/2022",
-        "competencia_fim": "06/2022"
+        "competencia_fim": "06/2022",
+        "table_name": "sia_pa_junho_2022" 
     }
     ```
+    
+    Se o parâmetro table_name não for fornecido, será gerado um nome automático
+    no formato: {base}_{grupo}
     """
+    log_execution("Iniciando processamento de requisição")
     logging.info(
         "[query_data] Recebendo requisição. "
         f"Base={params.base}, Grupo={params.grupo}, Competências={params.competencia_inicio} a {params.competencia_fim}."
