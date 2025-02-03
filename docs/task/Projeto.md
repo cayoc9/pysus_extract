@@ -1,122 +1,79 @@
-Vou criar uma análise detalhada do projeto em formato Markdown:
-
-# Análise do Projeto PySUS Extract
+# Documentação do Projeto PySUS SIH/SIA
 
 ## Visão Geral
-O projeto é um sistema de extração, processamento e armazenamento de dados do DATASUS (Sistema Único de Saúde), focando especificamente nos dados do SIH (Sistema de Informações Hospitalares) e SIA (Sistema de Informações Ambulatoriais).
+O projeto consiste em uma API REST desenvolvida com FastAPI para processar e consultar dados do DataSUS (SIH - Sistema de Informações Hospitalares e SIA - Sistema de Informações Ambulatoriais).
 
-## Arquitetura do Projeto
+## Arquitetura e Componentes
 
-### Estrutura de Diretórios
-```
-.
-├── alembic/           # Gerenciamento de migrações do banco de dados
-├── Analises/          # Scripts e notebooks de análise de dados
-├── models/            # Modelos SQLAlchemy
-├── modulos/           # Módulos principais do sistema
-├── parquet_files/     # Arquivos de dados em formato Parquet
-├── log/              # Arquivos de log
-└── tests/            # Testes automatizados
-```
+### 1. Configurações Básicas
+- Utiliza variáveis de ambiente (.env)
+- Sistema de logging rotativo (logs diários)
+- Configurações de banco de dados PostgreSQL
+- Middleware CORS habilitado
 
-### Principais Componentes
+### 2. Estruturas de Dados
+- **grupos_dict**: Mapeamento de códigos para nomes descritivos dos grupos
+- **CAMPOS_CNES**: Mapeamento das colunas CNES por grupo
+- **GRUPOS_INFO**: Schema detalhado de cada grupo (RD, RJ, ER, PA, SP)
 
-1. **Gestão de Banco de Dados**
-- Uso do SQLAlchemy como ORM
-- PostgreSQL como banco de dados
-- Sistema de migrações com Alembic
-- Particionamento de tabelas por estado
+### 3. Fluxo Principal de Processamento
 
-2. **Processamento de Dados**
-- Conversão e validação de tipos de dados
-- Processamento paralelo para upload
-- Cache de dados em formato Parquet
-- Normalização de nomes e campos
+#### 3.1. Entrada de Dados (QueryParams)
+- `base`: SIH ou SIA
+- `grupo`: Código do grupo (RD, RJ, ER, etc.)
+- `cnes_list`: Lista de códigos CNES
+- `campos_agrupamento`: Campos para agrupamento
+- `competencia_inicio` e `competencia_fim`: Período de análise
+- `table_name`: Nome da tabela destino (opcional)
 
-3. **Módulos de Sistema**
-```markdown
-- upload_manager.py: Gerenciamento de uploads
-- data_validation.py: Validação de dados
-- db_utils.py: Utilitários de banco de dados
-- error_handler.py: Tratamento de erros
-- download_manager.py: Gerenciamento de downloads
-```
+#### 3.2. Pipeline de Processamento
 
-## Features Principais
+1. **Localização de Arquivos** (`get_parquet_files`)
+   - Recebe: base, grupo, período
+   - Busca arquivos .parquet correspondentes
+   - Retorna: lista de caminhos dos arquivos
 
-1. **Download de Dados**
-- Download automatizado do DATASUS
-- Suporte a múltiplos estados e períodos
-- Sistema de retry em caso de falhas
-- Cache de arquivos baixados
+2. **Processamento dos Arquivos** (`process_parquet_files`)
+   - Recebe: lista de arquivos e parâmetros
+   - Utiliza DuckDB para consultas
+   - Agrupa dados conforme especificado
+   - Converte tipos de dados
+   - Retorna: DataFrame processado
 
-2. **Processamento**
-- Validação automática de tipos de dados
-- Normalização de formatos
-- Processamento paralelo
-- Tratamento de erros e exceções
+3. **Conversão de Tipos** (`convert_datatypes`)
+   - Recebe: DataFrame e informações do schema
+   - Converte cada coluna para o tipo apropriado
+   - Registra problemas de conversão
+   - Retorna: DataFrame com tipos convertidos
 
-3. **Armazenamento**
-- Particionamento por estado
-- Migrações automáticas
-- Gestão de tipos de dados
-- Índices otimizados
+4. **Salvamento dos Resultados** (`save_results`)
+   - Recebe: DataFrame e nome da tabela
+   - Salva no PostgreSQL (replace)
+   - Registra operações no log
 
-## Fluxos de Dados
+### 4. Funções Auxiliares
 
-1. **Fluxo de Download**
-```mermaid
-Download DATASUS -> Validação -> Cache Parquet -> Processamento -> Banco de Dados
-```
+#### 4.1. Logging (`log_execution`)
+- Padroniza formato dos logs
+- Marca início/fim das operações
+- Facilita rastreamento de execução
 
-2. **Fluxo de Processamento**
-- Validação de dados
-- Conversão de tipos
-- Normalização
-- Upload ao banco
+#### 4.2. Validações
+- Validação de base de dados
+- Validação de grupos
+- Validação de formato de competência
+- Validação de conexão com banco
 
-3. **Fluxo de Upload**
-- Verificação de schema
-- Criação/atualização de tabelas
-- Upload em chunks
-- Validação pós-upload
+### 5. Endpoint Principal (/query)
 
-## Pontos de Atenção
-
-1. **Performance**
-- Uso de processamento paralelo
-- Particionamento de tabelas
-- Cache em Parquet
-- Gestão de conexões
-
-2. **Segurança**
-- Variáveis de ambiente
-- Tratamento de senhas
-- Logs seguros
-
-3. **Manutenibilidade**
-- Código modular
-- Documentação clara
-- Logs detalhados
-- Testes automatizados
-
-## Sugestões de Melhorias
-
-1. **Documentação**
-- Adicionar docstrings em todas as funções
-- Criar documentação de API
-- Melhorar README com exemplos
-
-2. **Testes**
-- Aumentar cobertura de testes
-- Adicionar testes de integração
-- Implementar CI/CD
-
-3. **Monitoramento**
-- Implementar métricas
-- Melhorar sistema de logs
-- Adicionar alertas
-
-## Conclusão
-
-O projeto apresenta uma arquitetura robusta para extração e processamento de dados do DATASUS, com boas práticas de desenvolvimento e preocupação com performance e segurança. As principais áreas de melhoria estão relacionadas à documentação e testes.
+```json
+POST /query
+{
+    "base": "SIH",
+    "grupo": "RD",
+    "cnes_list": ["2077485"],
+    "campos_agrupamento": ["CNES", "ANO_CMPT"],
+    "competencia_inicio": "01/2022",
+    "competencia_fim": "12/2022",
+    "table_name": "sih_rd_2022"
+}
