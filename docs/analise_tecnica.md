@@ -4,7 +4,7 @@
 
 O arquivo `main.py` implementa uma API REST usando FastAPI para consultar e processar dados do DataSUS. O sistema permite:
 
-- Consultar dados de diferentes bases (SIH, SIA, CNES)
+- Consultar dados de diferentes bases (SIH, SIA)
 - Filtrar por grupos específicos de dados
 - Agrupar resultados por campos selecionados
 - Salvar resultados em PostgreSQL e CSV
@@ -69,7 +69,73 @@ sequenceDiagram
 - Banco de dados: PostgreSQL
 - CORS: Habilitado para todas origens
 
-## 5. Pontos de Atenção
+## 5. Fluxo Detalhado de Processamento
+
+```mermaid
+sequenceDiagram
+    participant Cliente
+    participant API
+    participant Processador
+    participant BancoDados
+    participant Armazenamento
+
+    Cliente->>API: POST /query {params}
+    API->>Processador: Validar parâmetros
+    Processador->>Armazenamento: Buscar arquivos Parquet
+    Armazenamento->>Processador: Lista de arquivos
+    Processador->>DuckDB: Carregar e processar dados
+    DuckDB->>Processador: DataFrame resultante
+    Processador->>BancoDados: Salvar resultados
+    BancoDados->>API: Confirmação
+    API->>Cliente: Resposta com dados
+```
+
+## 6. Estratégias de Otimização
+
+1. **Cache de Consultas:**
+   - Memória: Redis para resultados parciais
+   - Disco: Armazenamento de datasets frequentes
+
+2. **Processamento em Streaming:**
+   ```python
+   def process_stream():
+       while has_data:
+           chunk = get_next_chunk()
+           yield process(chunk)
+           gc.collect()
+   ```
+
+3. **Particionamento de Dados:**
+   - Por UF/Ano/Mês
+   - Usar estrutura de diretórios:
+   ```
+   parquet_files/
+   ├── SIH/
+   │   ├── RD/
+   │   │   ├── RDAC202301.parquet
+   │   │   └── ... 
+   ```
+
+4. **Compressão de Dados:**
+   - Usar formato Parquet com Snappy
+   - Taxa de compressão típica: 70-80%
+
+## 7. Monitoramento e Métricas
+
+| Métrica            | Coleta                  | Alerta                |
+|---------------------|-------------------------|-----------------------|
+| Uso Memória         | psutil.virtual_memory() | >70% por >5min        |
+| Tempo Processamento | time.monotonic()        | >30s para 1GB de dados|
+| Erros por Minuto    | logging.error counter   | >10/min               |
+
+## 8. Próximas Etapas
+
+1. Implementar autenticação JWT
+2. Adicionar suporte a consultas agendadas
+3. Desenvolver dashboard de monitoramento
+4. Criar sistema de versionamento de schemas
+
+## 9. Pontos de Atenção
 
 1. **Performance**
    - Processamento arquivo por arquivo
