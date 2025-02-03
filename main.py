@@ -15,6 +15,35 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, field_validator
 from datetime import datetime
 import logging.handlers
+import io
+import asyncio
+from contextlib import asynccontextmanager
+
+# Adicionar no início do arquivo após os imports
+engine = None
+
+# Atualizar o gerenciador de lifespan
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    global engine
+    db_url = f"postgresql://{os.getenv('DB_USER')}:{quote_plus(os.getenv('DB_PASSWORD'))}@{os.getenv('DB_HOST')}:{os.getenv('DB_PORT')}/{os.getenv('DB_NAME')}"
+    engine = create_engine(db_url)
+    logging.info("Conexão com PostgreSQL estabelecida")
+    
+    # Verificar conexão ao iniciar
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        logging.info("Conexão com o banco de dados verificada com sucesso")
+    except Exception as e:
+        logging.error(f"Erro na conexão com o banco de dados: {str(e)}")
+        raise
+    
+    yield
+    
+    engine.dispose()
+    logging.info("Conexão com PostgreSQL encerrada")
+    engine = None
 
 # Dicionário de mapeamento para nomes de grupos
 grupos_dict = {
@@ -465,10 +494,7 @@ file_handler.setFormatter(formatter)
 # Configurar níveis e handlers
 logging.basicConfig(
     level=logging.INFO,
-    handlers=[
-        file_handler,
-        logging.StreamHandler()
-    ]
+    format='%(asctime)s - %(levelname)s - %(message)s'
 )
 
 # Manter handler do console com formatação
@@ -494,43 +520,13 @@ DB_PASSWORD_ENCODED = quote_plus(DB_PASSWORD)
 # Modelo de dados para parâmetros da consulta
 # ---------------------------------------------------------------------------
 class QueryParams(BaseModel):
-    base: str
+    base: str  
     grupo: str
     cnes_list: List[str]
     campos_agrupamento: List[str]
     competencia_inicio: str
     competencia_fim: str
-    table_name: str | None = None  # Campo opcional para nome da tabela
-    
-    @field_validator('base')
-    def validate_base(cls, v):
-        if v not in ['SIH', 'SIA']:
-            raise ValueError('Base deve ser SIH ou SIA')
-        return v
-
-    @field_validator('grupo')
-    def validate_grupo(cls, v):
-        # Caso deseje restringir a um subconjunto fixo, pode usar v not in [...],
-        # mas no momento alguns grupos foram listados:
-        grupos_validos = [
-            'RD','RJ','ER','SP','PA','AB','ABO','ACF','AD','AM','AMP','AN','AQ','AR','ATD',
-            'BI','IMPBO','PAM','PAR','PAS','PS','SAD','CH','CM','DC','EE','EF','EP','EQ',
-            'GM','HB','IN','LT','PF','RC','SR','ST'
-        ]
-        if v not in grupos_validos:
-            raise ValueError('Grupo inválido')
-        return v
-
-    @field_validator('competencia_inicio', 'competencia_fim')
-    def validate_competencia(cls, v):
-        """
-        Verifica se a competência está no formato MM/YYYY.
-        """
-        try:
-            datetime.strptime(v, '%m/%Y')
-        except ValueError:
-            raise ValueError('Formato de competência deve ser MM/YYYY')
-        return v
+    table_name: str
 
 # ---------------------------------------------------------------------------
 # Função de coleta de arquivos parquet
@@ -599,15 +595,9 @@ def get_parquet_files(base: str, grupo: str, comp_inicio: str, comp_fim: str) ->
 def get_schema_info(base: str, grupo: str) -> Dict[str, str]:
     """Retorna o schema de tipos para o grupo especificado"""
     try:
-        if base == 'SIA':
-            return GRUPOS_INFO_SIA[grupo]['colunas']
-        elif base == 'SIH':
-            return GRUPOS_INFO_SIH[grupo]['colunas']
-        else:
-            logging.warning(f"Base {base} não tem schema definido")
-            return {}
+        return GRUPOS_INFO[grupo]['colunas']
     except KeyError:
-        logging.warning(f"Grupo {grupo} não encontrado na base {base}")
+        logging.warning(f"grupo {grupo} não encontrado.")
         return {}
 
 def convert_value(value: Any, sql_type: str) -> Any:
@@ -825,7 +815,7 @@ def save_results(df: pd.DataFrame, table_name: str) -> None:
 # ---------------------------------------------------------------------------
 # Criação da aplicação FastAPI
 # ---------------------------------------------------------------------------
-app = FastAPI(title="DataSUS API")
+app = FastAPI(title="DataSUS API", lifespan=lifespan)
 
 # Configuração CORS
 app.add_middleware(
@@ -840,96 +830,32 @@ app.add_middleware(
 # Rota principal para query
 # ---------------------------------------------------------------------------
 @app.post("/query")
-async def query_data(params: QueryParams) -> Dict[str, Any]:
-    """
-    Endpoint para consulta de dados do DataSUS.
-    
-    Exemplo de requisição:
-    ```
-    POST /query
-    
-    {
-        "base": "SIH",
-        "grupo": "RD",
-        "cnes_list": ["2077485", "2077493"],
-        "campos_agrupamento": ["CNES", "ANO_CMPT", "MES_CMPT"],
-        "competencia_inicio": "01/2022",
-        "competencia_fim": "12/2022",
-        "table_name": "sih_rd_2022"  
-    }
-    ```
-    
-    Outro exemplo com diferentes parâmetros:
-    ```
-    POST /query
-    
-    {
-        "base": "SIA",
-        "grupo": "PA",
-        "cnes_list": ["2077485"],
-        "campos_agrupamento": ["CNES", "PROC_ID"],
-        "competencia_inicio": "06/2022",
-        "competencia_fim": "06/2022",
-        "table_name": "sia_pa_junho_2022" 
-    }
-    ```
-    
-    Se o parâmetro table_name não for fornecido, será gerado um nome automático
-    no formato: {base}_{grupo}
-    """
-    log_execution("Iniciando processamento de requisição")
-    logging.info(
-        "[query_data] Recebendo requisição. "
-        f"Base={params.base}, Grupo={params.grupo}, Competências={params.competencia_inicio} a {params.competencia_fim}."
-    )
+async def execute_query(params: QueryParams):
+    """Endpoint principal com criação de tabela e processamento assíncrono"""
     try:
-        # 1) Localiza arquivos .parquet
-        files = get_parquet_files(
-            params.base,
-            params.grupo,
-            params.competencia_inicio,
-            params.competencia_fim
-        )
+        # 1. Criar tabela se não existir
+        await create_table_if_not_exists(params.grupo, params.table_name)
         
+        # 2. Localizar arquivos
+        files = get_parquet_files(params.base, params.grupo, params.competencia_inicio, params.competencia_fim)
         if not files:
-            msg = "Nenhum arquivo encontrado para os critérios especificados."
-            logging.warning(f"[query_data] {msg}")
-            raise HTTPException(status_code=404, detail=msg)
+            raise HTTPException(404, "Nenhum arquivo encontrado para o período")
+            
+        logging.info(f"Iniciando processamento de {len(files)} arquivos")
         
-        # 2) Processa os arquivos
-        result_df = process_parquet_files(files, params)
+        # 3. Processar arquivos de forma assíncrona
+        tasks = [process_file(file, params) for file in files]
+        await asyncio.gather(*tasks)
         
-        if result_df.empty:
-            msg = "Nenhum dado encontrado para os critérios especificados."
-            logging.warning(f"[query_data] {msg}")
-            raise HTTPException(status_code=404, detail=msg)
-        
-        # 3) Mapeia o grupo para um nome descritivo e define nome da tabela
-        grupo_mapped = grupos_dict.get(params.grupo, params.grupo)
-        # Usa o nome da tabela fornecido ou gera um nome padrão
-        table_name = params.table_name if params.table_name else f"{params.base.lower()}_{grupo_mapped.lower()}"
-        
-        # 4) Salva os resultados
-        save_results(result_df, table_name)
-        
-        logging.info("[query_data] Consulta processada com sucesso.")
-        
-        # 5) Retorna a resposta com os dados e metadados
-        response = {
+        return {
             "status": "success",
-            "message": "Consulta processada com sucesso",
-            "dados": result_df.to_dict(orient='records'),
-            "total_registros": len(result_df),
-            "colunas": result_df.columns.tolist(),
-            "table_name": table_name
+            "processed_files": len(files),
+            "table_name": params.table_name
         }
         
     except Exception as e:
-        logging.error(f"[query_data] Erro ao processar consulta: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-    
-    log_execution("Finalizado processamento de requisição", False)
-    return response
+        logging.error(f"Erro na execução: {str(e)}")
+        raise HTTPException(500, str(e))
 
 # ---------------------------------------------------------------------------
 # Verifica conexão com banco de dados
@@ -951,6 +877,88 @@ def verify_db_connection():
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
+
+async def create_table_if_not_exists(grupo: str, table_name: str):
+    """Cria a tabela se não existir usando o schema definido"""
+    global engine
+    
+    try:
+        schema = GRUPOS_INFO[grupo]["colunas"]
+        columns = [f'"{col.lower()}" {dtype}' for col, dtype in schema.items()]
+        
+        create_table_sql = f"""
+        CREATE TABLE IF NOT EXISTS {table_name} (
+            {', '.join(columns)}
+        )
+        """
+        
+        async with engine.connect() as conn:
+            await conn.execute(text(create_table_sql))
+            await conn.commit()
+            
+        logging.info(f"Tabela {table_name} verificada/criada com sucesso")
+        
+    except KeyError:
+        raise HTTPException(400, f"Grupo {grupo} não encontrado no schema")
+    except Exception as e:
+        logging.error(f"Erro ao criar tabela: {str(e)}")
+        raise HTTPException(500, f"Erro na criação da tabela: {str(e)}")
+
+async def process_file(file_path: str, params: QueryParams):
+    """Processa um arquivo Parquet de forma assíncrona com chunk fixo"""
+    chunk_size = 10000  # Tamanho fixo definido
+    conn = duckdb.connect()
+    try:
+        # Converter campos para minúsculo e juntar
+        campos = ', '.join([f'"{c.strip().lower()}"' for c in params.campos_agrupamento])
+        
+        query = f"""
+        SELECT {campos}
+        FROM read_parquet('{file_path}')
+        WHERE "{CAMPOS_CNES[params.grupo].lower()}" IN ({','.join([f"'{cnes}'" for cnes in params.cnes_list])})
+        """
+        
+        result = conn.execute(query)
+        
+        while True:
+            df = result.fetch_df_chunk(chunk_size)
+            if df.empty:
+                break
+                
+            # Normalização de dados
+            df.columns = df.columns.str.lower()
+            df = df.where(pd.notnull(df), None)
+            
+            # Inserção assíncrona
+            await insert_to_postgres(df, params.table_name)
+            
+    except Exception as e:
+        logging.error(f"Erro processando {file_path}: {str(e)}")
+        raise
+    finally:
+        conn.close()
+
+# Atualizar a função de inserção
+async def insert_to_postgres(df: pd.DataFrame, table_name: str):
+    try:
+        csv_buffer = io.StringIO()
+        df.to_csv(csv_buffer, index=False, header=False, sep='|')
+        csv_buffer.seek(0)
+        
+        async with engine.connect() as conn:
+            await conn.run_sync(
+                lambda sync_conn: sync_conn.connection.cursor().copy_expert(
+                    f"COPY {table_name} FROM STDIN WITH CSV DELIMITER '|'",
+                    csv_buffer
+                )
+            )
+            await conn.commit()
+            
+        logging.info(f"Dados inseridos na tabela {table_name}")
+        
+    except Exception as e:
+        logging.error(f"Erro na inserção: {str(e)}")
+        raise
 
 
 
