@@ -58,162 +58,256 @@ grupos_dict = {
 }
 
 CAMPOS_CNES = {
-    "AB": ["ap_cnspcn"],
-    "ABO": ["ap_cnspcn"],
-    "ACF": ["ap_cnspcn"],
-    "AD": ["ap_cnspcn"],
-    "AM": ["ap_cnspcn"],
-    "AMP": ["ap_cnspcn"],
-    "AN": ["ap_cnspcn"],
-    "AQ": ["ap_cnspcn"],
-    "AR": ["ap_cnspcn"],
-    "ATD": ["ap_cnspcn"],
-    "BI": ["cns_pac", "cnsprof"],
-    "PA": ["PA_CODUNI"],
-    "RD": ["CNES"],
-    "RJ": ["cnes"],
-    "ER": ["CNES"],
-    "SP": ["sp_cnes"]
+    "SP": "SP_CNES",
+    "RD": "CNES",
+    "PA": "PA_CODUNI",
+    "AB": "AP_CNSPCN",
+    "ABO": "AP_CNSPCN",
+    "ACF": "AP_CNSPCN",
+    "AD": "AP_CNSPCN",
+    "AM": "AP_CNSPCN",
+    "AMP": "AP_CNSPCN",
+    "AN": "AP_CNSPCN",
+    "AQ": "AP_CNSPCN",
+    "AR": "AP_CNSPCN",
+    "ATD": "AP_CNSPCN",
+    "BI": "CNS_PAC",
+    "RJ": "CNES",
+    "ER": "CNES"
 }
 
 GRUPOS_INFO = {
     "RD": {
         "tabela": "sih_aih_reduzida",
-        "colunas": {'uf_zi': 'INTEGER', 'ano_cmpt': 'SMALLINT', 'mes_cmpt': 'SMALLINT', 'espec': 'TEXT', 'cgc_hosp': 'TEXT',
-         'n_aih': 'BIGINT', 'ident': 'SMALLINT', 'cep': 'TEXT', 'munic_res': 'INTEGER', 'nasc': 'DATE', 'sexo': 'TEXT', 
-         'uti_mes_in': 'SMALLINT', 'uti_mes_an': 'SMALLINT', 'uti_mes_al': 'SMALLINT', 'uti_mes_to': 'SMALLINT', 
-         'marca_uti': 'TEXT', 'uti_int_in': 'SMALLINT', 'uti_int_an': 'SMALLINT', 'uti_int_al': 'SMALLINT', 'uti_int_to': 'SMALLINT', 
-         'diar_acom': 'SMALLINT', 'qt_diarias': 'SMALLINT', 'proc_solic': 'TEXT', 'proc_rea': 'TEXT',
-         'val_sh': 'NUMERIC(12,2)', 'val_sp': 'NUMERIC(10,2)', 'val_sadt': 'NUMERIC(10,2)', 'val_rn': 'NUMERIC(10,2)', 
-         'val_acomp': 'NUMERIC(10,2)', 'val_ortp': 'NUMERIC(10,2)', 'val_sangue': 'NUMERIC(10,2)', 'val_sadtsr': 'NUMERIC(10,2)',
-         'val_transp': 'NUMERIC(10,2)', 'val_obsang': 'NUMERIC(10,2)', 'val_ped1ac': 'NUMERIC(10,2)', 'val_tot': 'NUMERIC(14,2)', 
-         'val_uti': 'NUMERIC(15,2)', 'us_tot': 'NUMERIC(10,2)', 'dt_inter': 'DATE', 'dt_saida': 'DATE', 'diag_princ': 'TEXT',
-         'diag_secun': 'TEXT', 'cobranca': 'TEXT', 'natureza': 'TEXT', 'nat_jur': 'TEXT', 'gestao': 'SMALLINT',
-         'rubrica': 'TEXT', 'ind_vdrl': 'BOOLEAN', 'munic_mov': 'INTEGER', 'cod_idade': 'SMALLINT', 'idade': 'SMALLINT',
-         'dias_perm': 'SMALLINT', 'morte': 'BOOLEAN', 'nacional': 'TEXT', 'num_proc': 'TEXT', 'car_int': 'TEXT',
-         'tot_pt_sp': 'NUMERIC(10,2)', 'cpf_aut': 'TEXT', 'homonimo': 'BOOLEAN', 'num_filhos': 'SMALLINT', 
-         'instru': 'SMALLINT', 'cid_notif': 'TEXT', 'contracep1': 'TEXT', 'contracep2': 'TEXT',
-         'gestrisco': 'BOOLEAN', 'insc_pn': 'TEXT', 'seq_aih5': 'SMALLINT', 'cbor': 'TEXT', 'cnaer': 'TEXT', 'vincprev': 'SMALLINT', 
-         'gestor_cod': 'TEXT', 'gestor_tp': 'SMALLINT', 'gestor_cpf': 'TEXT', 'gestor_dt': 'DATE', 'cnes': 'INTEGER', 'cnpj_mant': 'TEXT', 
-         'infehosp': 'BOOLEAN', 'cid_asso': 'TEXT', 'cid_morte': 'TEXT', 'complex': 'TEXT', 'financ': 'TEXT', 'faec_tp': 'TEXT', 
-         'regct': 'TEXT', 'raca_cor': 'TEXT', 'etnia': 'TEXT', 'sequencia': 'BIGINT', 'remessa': 'TEXT', 'aud_just': 'TEXT', 
-         'sis_just': 'TEXT', 'val_sh_fed': 'NUMERIC(12,2)', 'val_sp_fed': 'NUMERIC(12,2)', 'val_sh_ges': 'NUMERIC(12,2)', 'val_sp_ges': 'NUMERIC(12,2)', 
-         'val_uci': 'NUMERIC(15,2)', 'marca_uci': 'TEXT', 'diagsec1': 'TEXT', 'diagsec2': 'TEXT', 'diagsec3': 'TEXT', 
-         'diagsec4': 'TEXT', 'diagsec5': 'TEXT', 'diagsec6': 'TEXT', 'diagsec7': 'TEXT', 'diagsec8': 'TEXT',
-         'diagsec9': 'TEXT', 'tpdisec1': 'SMALLINT', 'tpdisec2': 'SMALLINT', 'tpdisec3': 'SMALLINT', 'tpdisec4': 'SMALLINT',
-         'tpdisec5': 'SMALLINT', 'tpdisec6': 'SMALLINT', 'tpdisec7': 'SMALLINT', 'tpdisec8': 'SMALLINT', 'tpdisec9': 'SMALLINT'}
+        "colunas": {
+            "uf_zi": "TEXT",  # Alterado para TEXT (código de 2 caracteres)
+            "ano_cmpt": "INTEGER",  # Aumentado para INTEGER (4 dígitos)
+            "mes_cmpt": "SMALLINT",
+            "n_aih": "TEXT",  # Alterado para TEXT (13 caracteres)
+            "ident": "TEXT",  # Alterado para TEXT (código de 1 caractere)
+            "nasc": "DATE",
+            "sexo": "TEXT",
+            "uti_mes_in": "SMALLINT",
+            "uti_mes_an": "SMALLINT",
+            "uti_mes_al": "SMALLINT",
+            "uti_mes_to": "SMALLINT",
+            "marca_uti": "TEXT",
+            "uti_int_in": "SMALLINT",
+            "uti_int_an": "SMALLINT",
+            "uti_int_al": "SMALLINT",
+            "uti_int_to": "SMALLINT",
+            "diar_acom": "SMALLINT",
+            "qt_diarias": "SMALLINT",
+            "proc_solic": "TEXT",
+            "proc_rea": "TEXT",
+            "val_sh": "NUMERIC(15,2)",  # Aumentada precisão
+            "val_sp": "NUMERIC(15,2)",
+            "val_sadt": "NUMERIC(15,2)",
+            "val_rn": "NUMERIC(15,2)",
+            "val_acomp": "NUMERIC(15,2)",
+            "val_ortp": "NUMERIC(15,2)",
+            "val_sangue": "NUMERIC(15,2)",
+            "val_sadtsr": "NUMERIC(15,2)",
+            "val_transp": "NUMERIC(15,2)",
+            "val_obsang": "NUMERIC(15,2)",
+            "val_ped1ac": "NUMERIC(15,2)",
+            "val_tot": "NUMERIC(15,2)",  # Padronizado precisão
+            "val_uti": "NUMERIC(15,2)",
+            "us_tot": "NUMERIC(15,2)",  # Aumentada precisão
+            "dt_inter": "DATE",
+            "dt_saida": "DATE",
+            "diag_princ": "TEXT",
+            "diag_secun": "TEXT",
+            "ind_vdrl": "TEXT",  # Alterado para TEXT (indicador)
+            "cod_idade": "TEXT",  # Alterado para TEXT (código de 2 caracteres)
+            "idade": "SMALLINT",
+            "dias_perm": "SMALLINT",
+            "morte": "TEXT",  # Alterado para TEXT (indicador)
+            "car_int": "TEXT",
+            "tot_pt_sp": "NUMERIC(15,2)",  # Aumentada precisão
+            "cnes": "TEXT",  # Alterado para TEXT (código de 7 caracteres)
+            "cid_asso": "TEXT",
+            "cid_morte": "TEXT",
+            "complex": "TEXT",
+            "faec_tp": "TEXT",
+            "aud_just": "TEXT",
+            "val_uci": "NUMERIC(15,2)",
+            "diagsec1": "TEXT",
+            "espec": "TEXT",
+            "cgc_hosp": "TEXT",
+            "cep": "TEXT",
+            "munic_res": "INTEGER",
+            "cobranca": "TEXT",
+            "natureza": "TEXT",
+            "nat_jur": "TEXT",
+            "gestao": "SMALLINT",
+            "rubrica": "TEXT",
+            "munic_mov": "INTEGER",
+            "nacional": "TEXT",
+            "num_proc": "TEXT",
+            "cpf_aut": "TEXT",
+            "homonimo": "BOOLEAN",
+            "num_filhos": "SMALLINT",
+            "instru": "SMALLINT",
+            "cid_notif": "TEXT",
+            "contracep1": "TEXT",
+            "contracep2": "TEXT",
+            "gestrisco": "BOOLEAN",
+            "insc_pn": "TEXT",
+            "seq_aih5": "SMALLINT",
+            "cbor": "TEXT",
+            "cnaer": "TEXT",
+            "vincprev": "SMALLINT",
+            "gestor_cod": "TEXT",
+            "gestor_tp": "SMALLINT",
+            "gestor_cpf": "TEXT",
+            "gestor_dt": "DATE",
+            "cnpj_mant": "TEXT",
+            "infehosp": "BOOLEAN",
+            "financ": "TEXT",
+            "regct": "TEXT",
+            "raca_cor": "TEXT",
+            "etnia": "TEXT",
+            "sequencia": "BIGINT",
+            "remessa": "TEXT",
+            "sis_just": "TEXT",
+            "val_sh_fed": "NUMERIC(12,2)",
+            "val_sp_fed": "NUMERIC(12,2)",
+            "val_sh_ges": "NUMERIC(12,2)",
+            "val_sp_ges": "NUMERIC(12,2)",
+            "marca_uci": "TEXT",
+            "diagsec2": "TEXT",
+            "diagsec3": "TEXT",
+            "diagsec4": "TEXT",
+            "diagsec5": "TEXT",
+            "diagsec6": "TEXT",
+            "diagsec7": "TEXT",
+            "diagsec8": "TEXT",
+            "diagsec9": "TEXT",
+            "tpdisec1": "SMALLINT",
+            "tpdisec2": "SMALLINT",
+            "tpdisec3": "SMALLINT",
+            "tpdisec4": "SMALLINT",
+            "tpdisec5": "SMALLINT",
+            "tpdisec6": "SMALLINT",
+            "tpdisec7": "SMALLINT",
+            "tpdisec8": "SMALLINT",
+            "tpdisec9": "SMALLINT"
+        }
     },
     "RJ": {
         "tabela": "sih_aih_rejeitada",
-        "colunas": {'cnes': "TEXT", 
-      'cod_idade': "SMALLINT", 
-      'num_filhos': "SMALLINT", 
-      'diar_acom': "SMALLINT", 
-      'n_aih': "BIGINT", 
-      'gestao': "SMALLINT", 
-      'dias_perm': "SMALLINT", 
-      'qt_diarias': "SMALLINT", 
-      'dt_inter': "DATE", 
-      'gestor_dt': "DATE", 
-      'gestor_tp': "SMALLINT", 
-      'seq_aih5': "TEXT", 
-      'gestrisco': "SMALLINT", 
-      'tot_pt_sp': "SMALLINT", 
-      'uf_zi': "TEXT", 
-      'us_tot': "NUMERIC(12,2)", 
-      'uti_int_al': "SMALLINT", 
-      'uti_int_an': "SMALLINT", 
-      'uti_int_in': "SMALLINT", 
-      'uti_int_to': "SMALLINT", 
-      'uti_mes_al': "SMALLINT", 
-      'uti_mes_an': "SMALLINT", 
-      'uti_mes_in': "SMALLINT", 
-      'uti_mes_to': "SMALLINT", 
-      'val_acomp': "NUMERIC(12,2)", 
-      'val_obsang': "NUMERIC(12,2)", 
-      'val_ortp': "NUMERIC(12,2)", 
-      'val_ped1ac': "NUMERIC(12,2)", 
-      'val_rn': "NUMERIC(12,2)", 
-      'val_sadt': "NUMERIC(12,2)", 
-      'val_sadtsr': "NUMERIC(12,2)", 
-      'val_sangue': "NUMERIC(12,2)", 
-      'val_sh': "NUMERIC(12,2)", 
-      'val_sp': "NUMERIC(12,2)", 
-      'val_tot': "NUMERIC(15,2)", 
-      'val_transp': "NUMERIC(12,2)", 
-      'val_uti': "NUMERIC(12,2)", 
-      'vincprev': "SMALLINT", 
-      'homonimo': "SMALLINT", 
-      'idade': "INTEGER", 
-      'ident': "SMALLINT", 
-      'ind_vdrl': "SMALLINT", 
-      'infehosp': "TEXT", 
-      'dt_saida': "DATE", 
-      'instru': "SMALLINT", 
-      'sequencia': "INTEGER", 
-      'mes_cmpt': "SMALLINT", 
-      'morte': "SMALLINT", 
-      'munic_mov': "TEXT", 
-      'munic_res': "TEXT", 
-      'ano_cmpt': "INTEGER", 
-      'nasc': "DATE", 
-      'marca_uti': "SMALLINT", 
-      'remessa': "TEXT",
-      'id_log': "TEXT", 
-      'st_situac': "SMALLINT", 
-      'st_bloq': "SMALLINT", 
-      'st_mot_blo': "TEXT", 
-      'car_int': "TEXT", 
-      'cbor': "TEXT", 
-      'cep': "TEXT", 
-      'cgc_hosp': "TEXT", 
-      'cid_asso': "TEXT", 
-      'cid_morte': "TEXT", 
-      'cid_notif': "TEXT", 
-      'cnaer': "TEXT", 
-      'cnpj_mant': "TEXT", 
-      'cobranca': "SMALLINT", 
-      'complex': "TEXT", 
-      'contracep1': "TEXT", 
-      'contracep2': "TEXT", 
-      'cpf_aut': "TEXT", 
-      'diag_princ': "TEXT", 
-      'diag_secun': "TEXT", 
-      'espec': "SMALLINT", 
-      'etnia': "TEXT", 
-      'faec_tp': "TEXT", 
-      'financ': "TEXT", 
-      'gestor_cod': "TEXT", 
-      'gestor_cpf': "TEXT", 
-      'insc_pn': "TEXT", 
-      'nacional': "TEXT", 
-      'natureza': "TEXT", 
-      'nat_jur': "TEXT", 
-      'num_proc': "TEXT", 
-      'proc_rea': "TEXT", 
-      'proc_solic': "TEXT", 
-      'raca_cor': "TEXT", 
-      'regct': "TEXT", 
-      'rubrica': "SMALLINT", 
-      'sexo': "SMALLINT"
-      }
+        "colunas": {
+            "cnes": "NUMERIC(7,0)",  # Numérico 7 dígitos (CNES)
+            "uf_zi": "SMALLINT",  # Numérico 2 dígitos (Código UF)
+            "ano_cmpt": "SMALLINT",  # Numérico 4 dígitos (ano)
+            "mes_cmpt": "SMALLINT",  # Numérico 2 dígitos (01-12)
+            "espec": "SMALLINT",  # Numérico 2 dígitos (especialidade)
+            "cgc_hosp": "NUMERIC(14,0)",  # Numérico 14 dígitos (CNPJ)
+            "n_aih": "NUMERIC(13,0)",  # Numérico 13 dígitos
+            "ident": "SMALLINT",  # Numérico 1 dígito (tipo AIH)
+            "cep": "NUMERIC(8,0)",  # Numérico 8 dígitos
+            "munic_res": "INTEGER",  # Numérico 6 dígitos (código IBGE)
+            "nasc": "DATE",  # Data AAAAMMDD
+            "sexo": "SMALLINT",  # Numérico 1 dígito
+            "uti_mes_in": "SMALLINT",  # Numérico 2 dígitos
+            "uti_mes_an": "SMALLINT",  # Numérico 2 dígitos
+            "uti_mes_al": "SMALLINT",  # Numérico 2 dígitos
+            "uti_mes_to": "SMALLINT",  # Numérico 2 dígitos
+            "marca_uti": "SMALLINT",  # Numérico 1 dígito
+            "uti_int_in": "SMALLINT",  # Numérico 2 dígitos
+            "uti_int_an": "SMALLINT",  # Numérico 2 dígitos
+            "uti_int_al": "SMALLINT",  # Numérico 2 dígitos
+            "uti_int_to": "SMALLINT",  # Numérico 2 dígitos
+            "diar_acom": "SMALLINT",  # Numérico 2 dígitos
+            "qt_diarias": "SMALLINT",  # Numérico 3 dígitos
+            "proc_solic": "NUMERIC(10,0)",  # Numérico 10 dígitos
+            "proc_rea": "NUMERIC(10,0)",  # Numérico 10 dígitos
+            "val_sh": "NUMERIC(10,2)",  # Numérico 10,2 decimais
+            "val_sp": "NUMERIC(10,2)",  # Numérico 10,2 decimais
+            "val_sadt": "NUMERIC(10,2)",  # Numérico 10,2 decimais
+            "val_rn": "NUMERIC(10,2)",  # Numérico 10,2 decimais
+            "val_acomp": "NUMERIC(10,2)",  # Numérico 10,2 decimais
+            "val_ortp": "NUMERIC(10,2)",  # Numérico 10,2 decimais
+            "val_sangue": "NUMERIC(10,2)",  # Numérico 10,2 decimais
+            "val_tot": "NUMERIC(10,2)",  # Numérico 10,2 decimais
+            "dt_inter": "DATE",  # Data AAAAMMDD
+            "dt_saida": "DATE",  # Data AAAAMMDD
+            "diag_princ": "TEXT",  # Texto 4 caracteres (CID-10)
+            "diag_secun": "TEXT",  # Texto 4 caracteres (CID-10)
+            "morte": "SMALLINT",  # Numérico 1 dígito
+            "gestao": "SMALLINT",  # Numérico 1 dígito
+            "cnpj_mant": "NUMERIC(14,0)",  # Numérico 14 dígitos
+            "cid_asso": "TEXT",  # Texto 4 caracteres
+            "cid_morte": "TEXT",  # Texto 4 caracteres
+            "complex": "SMALLINT",  # Numérico 2 dígitos
+            "financ": "NUMERIC(2,0)",  # Numérico 2 dígitos
+            "faec_tp": "SMALLINT",  # Numérico 2 dígitos
+            "regct": "NUMERIC(2,0)",  # Numérico 2 dígitos
+            "raca_cor": "SMALLINT",  # Numérico 1 dígito
+            "etnia": "SMALLINT",  # Numérico 2 dígitos
+            "st_situac": "SMALLINT",  # Numérico 1 dígito
+            "st_bloq": "SMALLINT",  # Numérico 1 dígito
+            "st_mot_blo": "SMALLINT",  # Numérico 2 dígitos
+            "sequencia": "NUMERIC(6,0)",  # Numérico 6 dígitos
+            "remessa": "TEXT",  # Texto 10 caracteres
+            # Campos mantidos conforme schema original
+            "cod_idade": "SMALLINT",
+            "num_filhos": "SMALLINT",
+            "dias_perm": "SMALLINT",
+            "gestor_dt": "DATE",
+            "gestor_tp": "SMALLINT",
+            "seq_aih5": "TEXT",
+            "gestrisco": "SMALLINT",
+            "tot_pt_sp": "SMALLINT",
+            "us_tot": "NUMERIC(12,2)",
+            "val_obsang": "NUMERIC(12,2)",
+            "val_ped1ac": "NUMERIC(12,2)",
+            "val_sadtsr": "NUMERIC(12,2)",
+            "val_transp": "NUMERIC(12,2)",
+            "val_uti": "NUMERIC(12,2)",
+            "vincprev": "SMALLINT",
+            "homonimo": "SMALLINT",
+            "idade": "INTEGER",
+            "ind_vdrl": "SMALLINT",
+            "infehosp": "TEXT",
+            "instru": "SMALLINT",
+            "munic_mov": "TEXT",
+            "id_log": "TEXT",
+            "car_int": "TEXT",
+            "cbor": "TEXT",
+            "cid_notif": "TEXT",
+            "cnaer": "TEXT",
+            "cobranca": "SMALLINT",
+            "contracep1": "TEXT",
+            "contracep2": "TEXT",
+            "cpf_aut": "TEXT",
+            "gestor_cod": "TEXT",
+            "gestor_cpf": "TEXT",
+            "insc_pn": "TEXT",
+            "nacional": "TEXT",
+            "natureza": "TEXT",
+            "nat_jur": "TEXT",
+            "num_proc": "TEXT",
+            "rubrica": "SMALLINT"
+        }
     },
     "ER": {
         "tabela": "sih_aih_rejeitada_erro",
         "colunas": {
-            "sequencia": "INTEGER",
-            "remessa": "TEXT",
-            "cnes": "INTEGER",
-            "aih": "BIGINT",
-            "ano": "SMALLINT",
-            "mes": "SMALLINT",
-            "dt_inter": "DATE",
-            "dt_saida": "DATE",
-            "mun_mov": "INTEGER",
-            "uf_zi": "INTEGER",
-            "mun_res": "INTEGER",
-            "uf_res": "TEXT",
-            "co_erro": "TEXT"
+            "sequencia": "NUMERIC(6,0)",  # Numérico 6 dígitos conforme schema
+            "remessa": "TEXT",            # Texto 10 caracteres (mantido TEXT pois é adequado para strings)
+            "cnes": "NUMERIC(7,0)",       # Numérico 7 dígitos (CNES)
+            "n_aih": "NUMERIC(13,0)",     # Numérico 13 dígitos (N_AIH)
+            "ano": "NUMERIC(4,0)",        # Numérico 4 dígitos (ano)
+            "mes": "NUMERIC(2,0)",        # Numérico 2 dígitos (01-12)
+            "dt_inter": "DATE",           # Data no formato DATE (AAAAMMDD)
+            "dt_saida": "DATE",           # Data no formato DATE (AAAAMMDD)
+            "mun_mov": "NUMERIC(6,0)",    # Código IBGE 6 dígitos
+            "uf_zi": "NUMERIC(2,0)",      # Código UF 2 dígitos
+            "mun_res": "NUMERIC(6,0)",    # Código IBGE 6 dígitos
+            "uf_res": "NUMERIC(2,0)",     # Código UF 2 dígitos (corrigido de TEXT para numérico)
+            "co_erro": "NUMERIC(2,0)"     # Código de erro 2 dígitos (corrigido de TEXT para numérico)
         }
     },
     "PA": {
@@ -223,9 +317,9 @@ GRUPOS_INFO = {
             "idademax": "TEXT",
             "idademin": "TEXT",
             "nu_pa_tot": "TEXT",
-            "nu_vpa_tot": "NUMERIC",
+            "nu_vpa_tot": "NUMERIC(15,2)",
             "pa_alta": "BOOLEAN",
-            "pa_autoriz": "TEXT", 
+            "pa_autoriz": "TEXT",
             "pa_catend": "TEXT",
             "pa_cbocod": "TEXT",
             "pa_cidcas": "TEXT",
@@ -239,19 +333,19 @@ GRUPOS_INFO = {
             "pa_codesp": "TEXT",
             "pa_codoco": "TEXT",
             "pa_codpro": "TEXT",
-            "pa_coduni": "TEXT",          # Mantido como TEXT pois é código de 7 caracteres
+            "pa_coduni": "TEXT",  # Mantido como TEXT pois é código de 7 caracteres
             "pa_condic": "TEXT",
-            "pa_datpr": "INTEGER",        # Data em formato numérico (AAAAMMDD)
-            "pa_datref": "INTEGER",       # Data em formato numérico (AAAAMM)
+            "pa_datpr": "INTEGER",
+            "pa_datref": "INTEGER",
             "pa_dif_val": "TEXT",
-            "pa_docorig": "TEXT",         # Código de 10 caracteres
+            "pa_docorig": "TEXT",
             "pa_encerr": "BOOLEAN",
             "pa_etnia": "TEXT",
             "pa_fler": "BOOLEAN",
             "pa_flidade": "SMALLINT",
             "pa_flqt": "TEXT",
             "pa_fxetar": "TEXT",
-            "pa_gestao": "TEXT",          # Código de 1 caractere
+            "pa_gestao": "TEXT",
             "pa_idade": "TEXT",
             "pa_incout": "TEXT",
             "pa_incurg": "TEXT",
@@ -263,21 +357,21 @@ GRUPOS_INFO = {
             "pa_motsai": "TEXT",
             "pa_munat": "INTEGER",
             "pa_munpcn": "INTEGER",
-            "pa_mvm": "DATE",             # Data no formato AAAAMM (6 dígitos)
+            "pa_mvm": "DATE",
             "pa_nat_jur": "TEXT",
             "pa_nh": "TEXT",
             "pa_nivcpl": "SMALLINT",
             "pa_numapa": "TEXT",
             "pa_obito": "BOOLEAN",
             "pa_perman": "BOOLEAN",
-            "pa_proc_id": "TEXT",         # Código de 10 caracteres
-            "pa_qtdapr": "INTEGER",       # Número inteiro de até 4 dígitos
-            "pa_qtdpro": "INTEGER",       # Número inteiro de até 4 dígitos
+            "pa_proc_id": "TEXT",
+            "pa_qtdapr": "INTEGER",
+            "pa_qtdpro": "INTEGER",
             "pa_racacor": "TEXT",
             "pa_rcb": "TEXT",
             "pa_rcbdf": "SMALLINT",
             "pa_regct": "TEXT",
-            "pa_sexo": "TEXT",            # Código de 1 caractere
+            "pa_sexo": "TEXT",
             "pa_srv_c": "TEXT",
             "pa_subfin": "TEXT",
             "pa_tipate": "TEXT",
@@ -288,16 +382,56 @@ GRUPOS_INFO = {
             "pa_transf": "BOOLEAN",
             "pa_ufdif": "SMALLINT",
             "pa_ufmun": "TEXT",
-            "pa_valapr": "NUMERIC",       # Decimal com até 15 dígitos
-            "pa_valpro": "NUMERIC",       # Decimal com até 15 dígitos
-            "pa_vl_cf": "NUMERIC",        # Decimal com até 15 dígitos
-            "pa_vl_cl": "NUMERIC",        # Decimal com até 15 dígitos
-            "pa_vl_inc": "NUMERIC",       # Decimal com até 15 dígitos
+            "pa_valapr": "NUMERIC(15,2)",
+            "pa_valpro": "NUMERIC(15,2)",
+            "pa_vl_cf": "NUMERIC(15,2)",
+            "pa_vl_cl": "NUMERIC(15,2)",
+            "pa_vl_inc": "NUMERIC(15,2)",
             "uf": "TEXT"
+        }
+    },
+    "SP": {
+        "tabela": "sih_servicos_profissionais",
+        "colunas": {
+            "sp_gestor": "NUMERIC(6,0)",
+            "sp_uf": "NUMERIC(2,0)",
+            "sp_aa": "NUMERIC(4,0)",
+            "sp_mm": "NUMERIC(2,0)",
+            "sp_cnes": "NUMERIC(7,0)",
+            "sp_naih": "NUMERIC(13,0)",
+            "sp_procrea": "NUMERIC(10,0)",
+            "sp_dtinter": "DATE",
+            "sp_dtsaida": "DATE",
+            "sp_num_pr": "TEXT",
+            "sp_tipo": "NUMERIC(2,0)",
+            "sp_cpfcgc": "NUMERIC(14,0)",
+            "sp_atoprof": "NUMERIC(10,0)",
+            "sp_tp_ato": "NUMERIC(2,0)",
+            "sp_qtd_ato": "NUMERIC(5,0)",
+            "sp_ptsp": "NUMERIC(2,0)",
+            "sp_nf": "NUMERIC(12,0)",
+            "sp_valato": "NUMERIC(10,2)",
+            "sp_m_hosp": "NUMERIC(10,2)",
+            "sp_m_pac": "NUMERIC(10,2)",
+            "sp_des_hos": "NUMERIC(10,2)",
+            "sp_des_pac": "NUMERIC(10,2)",
+            "sp_complex": "NUMERIC(2,0)",
+            "sp_financ": "NUMERIC(2,0)",
+            "sp_co_faec": "NUMERIC(10,0)",
+            "sp_pf_cbo": "NUMERIC(6,0)",
+            "sp_pf_doc": "NUMERIC(11,0)",
+            "sp_pj_doc": "NUMERIC(14,0)",
+            "in_tp_val": "NUMERIC(1,0)",
+            "sequencia": "NUMERIC(5,0)",
+            "remessa": "NUMERIC(6,0)",
+            "serv_cla": "NUMERIC(4,0)",
+            "sp_cidpri": "TEXT",
+            "sp_cidsec": "TEXT",
+            "sp_qt_proc": "NUMERIC(5,0)",
+            "sp_u_aih": "NUMERIC(2,0)"
         }
     }
 }
-
 
 # ---------------------------------------------------------------------------
 # Configurações básicas
