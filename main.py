@@ -1017,9 +1017,60 @@ GRUPOS_INFO_SIH = {
       'sexo':  "SMALLINT"
       },
     'sih_aih_rejeitada_erro': 
-    {'sequencia': 'INTEGER', 'remessa': 'VARCHAR(50)', 'cnes': 'INTEGER', 'aih': 'BIGINT', 'ano': 'SMALLINT', 'mes': 'SMALLINT', 
-     'dt_inter': 'DATE', 'dt_saida': 'DATE', 'mun_mov': 'INTEGER', 'uf_zi': 'INTEGER', 'mun_res': 'INTEGER', 'uf_res': 'CHAR(2)',
-       'co_erro': 'VARCHAR(10)'},
+    {
+        "sequencia": "NUMERIC(6,0)",  # Numérico 6 dígitos conforme schema
+        "remessa": "TEXT",            # Texto 10 caracteres (mantido TEXT pois é adequado para strings)
+        "cnes": "NUMERIC(7,0)",       # Numérico 7 dígitos (CNES)
+        "n_aih": "NUMERIC(13,0)",     # Numérico 13 dígitos (N_AIH)
+        "ano": "NUMERIC(4,0)",        # Numérico 4 dígitos (ano)
+        "mes": "NUMERIC(2,0)",        # Numérico 2 dígitos (01-12)
+        "dt_inter": "DATE",           # Data no formato DATE (AAAAMMDD)
+        "dt_saida": "DATE",           # Data no formato DATE (AAAAMMDD)
+        "mun_mov": "NUMERIC(6,0)",    # Código IBGE 6 dígitos
+        "uf_zi": "NUMERIC(2,0)",      # Código UF 2 dígitos
+        "mun_res": "NUMERIC(6,0)",    # Código IBGE 6 dígitos
+        "uf_res": "NUMERIC(2,0)",     # Código UF 2 dígitos (corrigido de TEXT para numérico)
+        "co_erro": "NUMERIC(2,0)"     # Código de erro 2 dígitos (corrigido de TEXT para numérico)
+        },
+        'sih_servicos_profissionais': 
+        {
+            "sp_gestor": "NUMERIC(6,0)",
+            "sp_uf": "NUMERIC(2,0)",
+            "sp_aa": "NUMERIC(4,0)",
+            "sp_mm": "NUMERIC(2,0)",
+            "sp_cnes": "NUMERIC(7,0)",
+            "sp_naih": "NUMERIC(13,0)",
+            "sp_procrea": "NUMERIC(10,0)",
+            "sp_dtinter": "DATE",
+            "sp_dtsaida": "DATE",
+            "sp_num_pr": "TEXT",
+            "sp_tipo": "NUMERIC(2,0)",
+            "sp_cpfcgc": "NUMERIC(14,0)",
+            "sp_atoprof": "NUMERIC(10,0)",
+            "sp_tp_ato": "NUMERIC(2,0)",
+            "sp_qtd_ato": "NUMERIC(5,0)",
+            "sp_ptsp": "NUMERIC(2,0)",
+            "sp_nf": "NUMERIC(12,0)",
+            "sp_valato": "NUMERIC(10,2)",
+            "sp_m_hosp": "NUMERIC(10,2)",
+            "sp_m_pac": "NUMERIC(10,2)",
+            "sp_des_hos": "NUMERIC(10,2)",
+            "sp_des_pac": "NUMERIC(10,2)",
+            "sp_complex": "NUMERIC(2,0)",
+            "sp_financ": "NUMERIC(2,0)",
+            "sp_co_faec": "NUMERIC(10,0)",
+            "sp_pf_cbo": "NUMERIC(6,0)",
+            "sp_pf_doc": "NUMERIC(11,0)",
+            "sp_pj_doc": "NUMERIC(14,0)",
+            "in_tp_val": "NUMERIC(1,0)",
+            "sequencia": "NUMERIC(5,0)",
+            "remessa": "NUMERIC(6,0)",
+            "serv_cla": "NUMERIC(4,0)",
+            "sp_cidpri": "TEXT",
+            "sp_cidsec": "TEXT",
+            "sp_qt_proc": "NUMERIC(5,0)",
+            "sp_u_aih": "NUMERIC(2,0)"
+        }
 }
 # ---------------------------------------------------------------------------
 # Configurações básicas
