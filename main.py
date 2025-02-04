@@ -7,17 +7,21 @@ import duckdb
 import pandas as pd
 from sqlalchemy import create_engine, text
 from urllib.parse import quote_plus
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends, Security, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
-# Removido temporariamente:
-# from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-# from jose import JWTError, jwt
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from jose import JWTError, jwt
 from pydantic import BaseModel, field_validator
 from datetime import datetime
 import logging.handlers
 import io
 import asyncio
 from contextlib import asynccontextmanager
+from functools import lru_cache
+from pathlib import Path
+import tempfile
+from resource_manager import ManagedThreadPool, DuckDBConnection
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 
 # Adicionar no início do arquivo após os imports
 engine = None
@@ -26,13 +30,13 @@ engine = None
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global engine
-    db_url = f"postgresql://{os.getenv('DB_USER')}:{quote_plus(os.getenv('DB_PASSWORD'))}@{os.getenv('DB_HOST')}:{os.getenv('DB_PORT')}/{os.getenv('DB_NAME')}"
-    engine = create_engine(db_url)
+    db_url = f"postgresql+asyncpg://{DB_USER}:{DB_PASSWORD_ENCODED}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+    engine = create_async_engine(db_url)
     logging.info("Conexão com PostgreSQL estabelecida")
     
     # Verificar conexão ao iniciar
     try:
-        with engine.connect() as conn:
+        async with engine.connect() as conn:
             conn.execute(text("SELECT 1"))
         logging.info("Conexão com o banco de dados verificada com sucesso")
     except Exception as e:
@@ -503,10 +507,10 @@ console_handler.setLevel(logging.INFO)
 console_handler.setFormatter(logging.Formatter('%(asctime)s %(levelname)s:%(message)s'))
 logging.getLogger().addHandler(console_handler)
 
-# Configurações do JWT - Removido temporariamente
-# SECRET_KEY = os.getenv("JWT_SECRET_KEY", "your-secret-key")
-# ALGORITHM = "HS256"
-# security = HTTPBearer()
+# Configurações do JWT (adicionar após carregar variáveis de ambiente)
+SECRET_KEY = os.getenv("JWT_SECRET_KEY", "sua-chave-secreta")
+ALGORITHM = "HS256"
+security = HTTPBearer()
 
 # Configurações do banco de dados
 DB_USER = os.getenv('DB_USER')
@@ -527,6 +531,19 @@ class QueryParams(BaseModel):
     competencia_inicio: str
     competencia_fim: str
     table_name: str
+
+    @field_validator('campos_agrupamento')
+    def validate_columns(cls, v, values):
+        grupo = values.data.get('grupo', '').upper()
+        if grupo in GRUPOS_INFO:
+            # Normalizar para minúsculas
+            schema_cols = [col.lower() for col in GRUPOS_INFO[grupo]['colunas'].keys()]
+            input_cols = [col.lower() for col in v]
+            
+            invalid = [col for col in input_cols if col not in schema_cols]
+            if invalid:
+                raise ValueError(f"Colunas inválidas: {invalid}. Colunas válidas: {schema_cols}")
+        return [col.upper() for col in v]  # Manter original para leitura
 
 # ---------------------------------------------------------------------------
 # Função de coleta de arquivos parquet
@@ -674,148 +691,97 @@ def get_cnes_column(grupo: str) -> str:
         return "CNES"  # coluna padrão se não encontrar mapeamento
     return CAMPOS_CNES[grupo][0]  # pega primeiro item da lista
 
-def process_parquet_files(files: List[str], params: QueryParams) -> pd.DataFrame:
-    """
-    Processa arquivos Parquet, realiza consultas via DuckDB e converte tipos de dados.
-    
-    Args:
-        files: Lista de caminhos dos arquivos Parquet
-        params: Parâmetros da consulta (base, grupo, filtros, etc)
-        
-    Returns:
-        DataFrame processado com tipos convertidos
-    """
-    log_execution("Iniciando processamento de arquivos")
-    logging.info(f"[process_parquet_files] Iniciando processamento de {len(files)} arquivo(s).")
-    
-    con = duckdb.connect()
-    cnes_str = ",".join([f"'{cnes}'" for cnes in params.cnes_list])
-    
-    # Obtém nome correto da coluna CNES para o grupo
-    cnes_column = get_cnes_column(params.grupo)
-    
-    # Adiciona coluna CNES aos campos de agrupamento se não existir
-    campos_agrupamento = params.campos_agrupamento.copy()
-    if not any(col.lower() == cnes_column.lower() for col in campos_agrupamento):
-        campos_agrupamento.insert(0, cnes_column)
-    
-    group_by_cols = ",".join(campos_agrupamento)
-    
-    results = []
-    total_rows = 0
-    
-    # 1. Processamento dos arquivos Parquet
-    for file_path in files:
-        logging.info(f"[process_parquet_files] Processando arquivo: {file_path}")
-        
-        query = f"""
-        SELECT {group_by_cols}
-        FROM read_parquet('{file_path}')
-        WHERE LOWER({cnes_column}) IN (SELECT LOWER(unnest(ARRAY[{cnes_str}])))
-        """
-        try:
-            df = con.execute(query).df()
-            rows = len(df)
-            total_rows += rows
-            logging.info(f"[process_parquet_files] OK. Linhas retornadas: {rows}.")
-            results.append(df)
-        except Exception as e:
-            logging.error(f"[process_parquet_files] Erro ao processar arquivo {file_path}: {e}")
-    
-    con.close()
-    
-    if not results:
-        logging.info("[process_parquet_files] Nenhum resultado encontrado.")
-        return pd.DataFrame()
-    
-    # 2. Concatenação dos resultados
-    logging.info(f"[process_parquet_files] Concatenando {len(results)} DataFrames...")
-    final_df = pd.concat(results, ignore_index=True)
-    
-    # Nova etapa: Converter todos os nomes de colunas para minúsculo
-    final_df.columns = final_df.columns.str.lower()
-    logging.info("[process_parquet_files] Colunas convertidas para minúsculo")
-    
-    # 3. Conversão de tipos de dados
-    logging.info("[process_parquet_files] Iniciando conversão de tipos...")
+async def process_file(file: str, params: QueryParams):
+    """Processa um arquivo Parquet com tratamento robusto de erros e uso de recursos controlado"""
     try:
-        final_df = convert_datatypes(final_df, params.base, params.grupo)
-        logging.info("[process_parquet_files] Conversão de tipos concluída com sucesso")
+        with DuckDBConnection() as conn, \
+             tempfile.TemporaryDirectory() as tmp_dir:
+
+            # 1. Configurar ambiente de processamento
+            file_path = Path(file)
+            output_file = f"{tmp_dir}/processed.parquet"
+            cnes_column = get_cnes_column(params.grupo)
+
+            # 2. Construir query dinâmica com validação
+            columns = ", ".join([f'"{col}"' for col in params.campos_agrupamento])
+            where_clause = f'WHERE "{cnes_column}" IN {tuple(params.cnes_list)}' if params.cnes_list != ["*"] else ""
+
+            query = f"""
+                COPY (
+                    SELECT {columns}
+                    FROM '{file_path}'
+                    {where_clause}
+                ) TO '{output_file}' (FORMAT PARQUET)
+            """
+
+            # 3. Executar consulta com pool de threads
+            conn.execute(query)  # Agora usando a conexão do pool
+
+            # 4. Ler e processar dados
+            df = pd.read_parquet(output_file)
+            df = convert_datatypes(df, params.grupo)
+            
+            # 5. Validar schema contra GRUPOS_INFO
+            schema = GRUPOS_INFO[params.grupo]["colunas"]
+            validate_schema(df, schema)
+
+            return df
+
+    except duckdb.CatalogException as e:
+        logging.error(f"Erro de schema no arquivo {file}: {str(e)}")
+        raise HTTPException(400, detail=f"Arquivo {file_path.name} possui schema inválido")
+    
+    except pd.errors.ParserError as e:
+        logging.error(f"Arquivo corrompido: {file}")
+        raise HTTPException(422, detail=f"Arquivo {file_path.name} está corrompido")
+    
     except Exception as e:
-        logging.error(f"[process_parquet_files] Erro na conversão de tipos: {e}")
-        # Continua com o DataFrame original em caso de erro
+        logging.error(f"Erro inesperado processando {file}: {str(e)}")
+        raise HTTPException(500, detail="Erro interno no processamento de dados")
+
+def validate_schema(df: pd.DataFrame, schema: dict):
+    """Valida o DataFrame contra o schema esperado"""
+    missing_cols = [col for col in schema if col not in df.columns]
+    extra_cols = [col for col in df.columns if col not in schema]
     
-    # 4. Validação final
-    null_info = final_df.isnull().sum()
-    if null_info.any():
-        logging.warning("Colunas com valores nulos após processamento:")
-        for col, count in null_info[null_info > 0].items():
-            logging.warning(f"  - {col}: {count} valores nulos")
+    if missing_cols:
+        raise HTTPException(400, detail=f"Colunas faltando: {missing_cols}")
     
-    log_execution("Finalizado processamento de arquivos", False)
-    return final_df
-
-# ---------------------------------------------------------------------------
-# Função de salvamento de resultados
-# ---------------------------------------------------------------------------
-def save_results(df: pd.DataFrame, table_name: str) -> None:
-    logging.info(f"[save_results] Iniciando salvamento. Tabela destino: {table_name}")
+    if extra_cols:
+        df = df.drop(columns=extra_cols)
     
-    try:
-        # Força recarregamento das variáveis de ambiente
-        load_dotenv(override=True)  # Adicionar parâmetro override
-        
-        # Criar string de conexão com valores atualizados
-        conn_str = (
-            f"postgresql+psycopg2://{os.getenv('DB_USER')}:"
-            f"{quote_plus(os.getenv('DB_PASSWORD'))}@"
-            f"{os.getenv('DB_HOST')}:{os.getenv('DB_PORT')}/"
-            f"{os.getenv('DB_NAME')}"
-        )
-        
-        engine = create_engine(conn_str)
-        
-        # Testar conexão antes de prosseguir
-        with engine.connect() as conn:
-            conn.execute(text('SELECT 1'))
-            logging.info("Conexão com banco testada com sucesso")
-        
-        # Garantir colunas em minúsculo antes de salvar
-        df.columns = df.columns.str.lower()
-        
-        # Salva no PostgreSQL
-        df.to_sql(table_name, engine, if_exists='replace', index=False)
-        logging.info(f"[save_results] Tabela '{table_name}' salva/recriada no PostgreSQL (replace).")
+    return df
 
-        # Se tiver menos de 10M linhas, salva em CSV
-        row_count = len(df)
-        if row_count < 10_000_000:
-            csv_dir = 'consultas'
-            os.makedirs(csv_dir, exist_ok=True)
-            csv_path = f'{csv_dir}/{table_name}_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv'
-            df.to_csv(csv_path, index=False)
-            logging.info(f"[save_results] DataFrame com {row_count} linha(s) salvo em CSV: {csv_path}")
-        else:
-            logging.info(f"[save_results] DataFrame com {row_count} linha(s). Não será salvo em CSV.")
-    except Exception as e:
-        logging.error(f"[save_results] Erro ao salvar resultados: {e}")
-        raise HTTPException(status_code=500, detail=f"Erro ao salvar resultados: {e}")
+@lru_cache(maxsize=32)
+def get_cached_schema(grupo: str) -> dict:
+    """Cache de schemas com timeout de 1 hora"""
+    return GRUPOS_INFO.get(grupo, {}).get('colunas', {})
+
+def build_query(file_path: str, params: QueryParams) -> str:
+    """Constrói query com normalização de casos"""
+    columns = ", ".join([
+        f'"{col}" as "{col.lower()}"'  # Alias para minúsculas
+        for col in params.campos_agrupamento
+    ])
+    return f"""
+        SELECT {columns}
+        FROM '{file_path}'
+    """
+
+@app.on_event("startup")
+async def startup_event():
+    DuckDBConnection.initialize_pool()
+    # Resto da inicialização...
 
 # ---------------------------------------------------------------------------
-# Autenticação - Removido temporariamente
+# Criação da aplicação FastAPI (DEVE SER A ÚLTIMA COISA NO ARQUIVO)
 # ---------------------------------------------------------------------------
-# def verify_token(credentials: HTTPAuthorizationCredentials = Security(security)):
-#     try:
-#         token = credentials.credentials
-#         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-#         return payload
-#     except JWTError:
-#         raise HTTPException(status_code=401, detail="Token inválido")
-
-# ---------------------------------------------------------------------------
-# Criação da aplicação FastAPI
-# ---------------------------------------------------------------------------
-app = FastAPI(title="DataSUS API", lifespan=lifespan)
+app = FastAPI(
+    title="DataSUS API",
+    description="API para processamento de dados do DataSUS",
+    version="1.0.0",
+    lifespan=lifespan
+)
 
 # Configuração CORS
 app.add_middleware(
@@ -826,12 +792,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ---------------------------------------------------------------------------
-# Rota principal para query
-# ---------------------------------------------------------------------------
-@app.post("/query")
-async def execute_query(params: QueryParams):
-    """Endpoint principal com criação de tabela e processamento assíncrono"""
+# Adicionar rota principal APÓS a criação do app
+@app.post("/query", tags=["Main"])
+async def query_data(params: QueryParams, background_tasks: BackgroundTasks):
+    """Endpoint principal sem autenticação"""
     try:
         # 1. Criar tabela se não existir
         await create_table_if_not_exists(params.grupo, params.table_name)
@@ -879,86 +843,37 @@ if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
 
 async def create_table_if_not_exists(grupo: str, table_name: str):
-    """Cria a tabela se não existir usando o schema definido"""
-    global engine
-    
+    """Cria tabela de forma assíncrona se não existir"""
     try:
-        schema = GRUPOS_INFO[grupo]["colunas"]
-        columns = [f'"{col.lower()}" {dtype}' for col, dtype in schema.items()]
-        
-        create_table_sql = f"""
-        CREATE TABLE IF NOT EXISTS {table_name} (
-            {', '.join(columns)}
-        )
-        """
-        
         async with engine.connect() as conn:
-            await conn.execute(text(create_table_sql))
-            await conn.commit()
-            
-        logging.info(f"Tabela {table_name} verificada/criada com sucesso")
-        
-    except KeyError:
-        raise HTTPException(400, f"Grupo {grupo} não encontrado no schema")
+            # Verificar existência da tabela
+            result = await conn.execute(
+                text(
+                    "SELECT EXISTS ("
+                    "SELECT FROM information_schema.tables "
+                    "WHERE table_name = :table_name"
+                    ")"
+                ),
+                {"table_name": table_name.lower()}
+            )
+            exists = result.scalar()
+
+            if not exists:
+                # Obter schema do grupo
+                schema = GRUPOS_INFO[grupo.upper()]["colunas"]
+                columns = [f'"{col}" {dtype}' for col, dtype in schema.items()]
+                
+                # Criar tabela
+                create_sql = text(
+                    f"CREATE TABLE {table_name} ({', '.join(columns)})"
+                )
+                await conn.execute(create_sql)
+                await conn.commit()
+                logging.info(f"Tabela {table_name} criada com sucesso")
+
     except Exception as e:
         logging.error(f"Erro ao criar tabela: {str(e)}")
-        raise HTTPException(500, f"Erro na criação da tabela: {str(e)}")
-
-async def process_file(file_path: str, params: QueryParams):
-    """Processa um arquivo Parquet de forma assíncrona com chunk fixo"""
-    chunk_size = 10000  # Tamanho fixo definido
-    conn = duckdb.connect()
-    try:
-        # Converter campos para minúsculo e juntar
-        campos = ', '.join([f'"{c.strip().lower()}"' for c in params.campos_agrupamento])
-        
-        query = f"""
-        SELECT {campos}
-        FROM read_parquet('{file_path}')
-        WHERE "{CAMPOS_CNES[params.grupo].lower()}" IN ({','.join([f"'{cnes}'" for cnes in params.cnes_list])})
-        """
-        
-        result = conn.execute(query)
-        
-        while True:
-            df = result.fetch_df_chunk(chunk_size)
-            if df.empty:
-                break
-                
-            # Normalização de dados
-            df.columns = df.columns.str.lower()
-            df = df.where(pd.notnull(df), None)
-            
-            # Inserção assíncrona
-            await insert_to_postgres(df, params.table_name)
-            
-    except Exception as e:
-        logging.error(f"Erro processando {file_path}: {str(e)}")
-        raise
-    finally:
-        conn.close()
-
-# Atualizar a função de inserção
-async def insert_to_postgres(df: pd.DataFrame, table_name: str):
-    try:
-        csv_buffer = io.StringIO()
-        df.to_csv(csv_buffer, index=False, header=False, sep='|')
-        csv_buffer.seek(0)
-        
-        async with engine.connect() as conn:
-            await conn.run_sync(
-                lambda sync_conn: sync_conn.connection.cursor().copy_expert(
-                    f"COPY {table_name} FROM STDIN WITH CSV DELIMITER '|'",
-                    csv_buffer
-                )
-            )
-            await conn.commit()
-            
-        logging.info(f"Dados inseridos na tabela {table_name}")
-        
-    except Exception as e:
-        logging.error(f"Erro na inserção: {str(e)}")
-        raise
+        raise HTTPException(500, detail=f"Erro na criação da tabela: {str(e)}")
 
 
 

@@ -6,11 +6,18 @@
 
 ## Parâmetros de Entrada
 - base: string (ex: "SIH") - Base de dados do DataSUS
-- grupo: string (ex: "RD") - Grupo de dados
-- estados: array[string] - Lista de estados desejados
-- colunas: array[string] - Lista de colunas desejadas
+- grupo: string (ex: "SP") - Grupo de dados
+- cnes_list: array[string] - Lista de CNES desejados
+- campos_agrupamento: array[string] - Lista de colunas desejadas
 - competencia_inicio: string (formato: "MM/YYYY")
 - competencia_fim: string (formato: "MM/YYYY")
+- table_name: string - Nome da tabela no banco de dados PostgreSQL
+
+## Regras de Negócio
+- buscar as colunas no parquet em maiusculo
+- subir os dados para o banco em minusculo
+- Sempre adicionar o CNES nas colunas selecionadas automaticamente
+
 
 ## Autenticação
 - JWT token obrigatório
@@ -18,11 +25,11 @@
 
 ## Processamento
 1. Validar parâmetros de entrada
-2. Localizar arquivos parquet correspondentes em /parquet_files/{base}/{grupo}/'{grupo}{UF}{MM}{YY}.parquet'/*
-3. Carregar dados usando PyArrow
-4. Filtrar por competência, estado e colunas solicitadas
-5. Retornar DataFrame serializado
-6. inserir dados no banco de dados PostgreSQL na tabela correspondente ao grupo
+2. Localizar arquivos parquet correspondentes em /parquet_files/{base}/{grupo}/'{grupo}{UF}{YY}{MM}.parquet'/*
+3. Carregar dados usando PyArrow e duckdb
+4. Filtrar cnes selecionado e incluir colunas solicitadas
+5. Retornar dados serializados
+6. inserir dados no banco de dados PostgreSQL na tabela enviada
 
 ## Respostas
 - 200: DataFrame serializado com dados encontrados

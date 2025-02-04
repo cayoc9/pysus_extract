@@ -56,6 +56,24 @@ Este documento descreve o plano de testes para a API DataSUS implementada em `ma
   - Teste com diferentes tamanhos de DataFrame
   - Teste de tratamento de erros de conexão
 
+#### 3.1.4 Funções de Gerenciamento de Recursos
+- `ManagedThreadPool`
+  - Teste de alocação dinâmica de workers
+  - Teste de throttling sob alta carga
+  - Teste de shutdown seguro
+  - Teste de liberação de recursos remanescentes
+
+- `DuckDBConnection`
+  - Teste de pool de conexões
+  - Teste de reutilização de conexões
+  - Teste de reset de conexão
+  - Teste de limite máximo do pool
+
+- `MemoryGuardian`
+  - Teste de detecção de alta memória
+  - Teste de limpeza de emergência
+  - Teste de encerramento seguro
+
 ### 3.2 Testes de Integração
 
 #### 3.2.1 Banco de Dados
@@ -69,6 +87,12 @@ Este documento descreve o plano de testes para a API DataSUS implementada em `ma
 - Teste de criação de logs
 - Teste de criação de CSVs
 - Teste de permissões de acesso
+
+#### 3.2.3 Integração com Resource Manager
+- Teste de processamento com múltiplos pools
+- Teste de concorrência controlada
+- Teste de recuperação após OOM
+- Teste de alocação de memória em batches
 
 ### 3.3 Testes de API
 
@@ -193,13 +217,11 @@ DB_NAME=test_db
 - Tratamento adequado de todos os casos de erro
 - Logs claros e informativos
 
-## 8. Cronograma de Execução
-
-1. Preparação do ambiente (1 dia)
-2. Implementação dos testes unitários (3 dias)
-3. Implementação dos testes de integração (2 dias)
-4. Testes de API e carga (2 dias)
-5. Correções e ajustes (2 dias)
+## 8. Cronograma Atualizado
+1. Testes de Unidade do Resource Manager (2 dias)
+2. Testes de Integração com Processamento (3 dias)
+3. Testes de Carga com Monitoramento (2 dias)
+4. Análise de Resultados e Ajustes (1 dia)
 
 ## 9. Responsabilidades
 
