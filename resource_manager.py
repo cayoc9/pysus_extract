@@ -10,6 +10,7 @@ import psutil
 import logging
 from contextlib import contextmanager
 from concurrent.futures import ThreadPoolExecutor, Future
+import asyncio
 
 def get_system_load():
     """Coleta métricas do sistema em tempo real"""
@@ -44,6 +45,7 @@ class ManagedThreadPool:
                 time.sleep(0.5)
             future = self.executor.submit(fn, *args, **kwargs)
             self._futures.append(future)
+            future.timeout = 30  # Segundos
             return future
 
     def _should_throttle(self):
@@ -62,14 +64,24 @@ class ManagedThreadPool:
             self._force_resource_release(timeout)
 
     def _force_resource_release(self, timeout):
-        """Força liberação de recursos em caso de timeout"""
+        """Liberação com verificação de progresso"""
         start = time.time()
         while time.time() - start < timeout:
             if all(f.done() for f in self._futures):
                 return
-            time.sleep(0.1)
-        logging.warning("Forçando liberação de recursos remanescentes")
+            time.sleep(0.5)
+        logging.error("Timeout crítico - reinicializando recursos")
         os._exit(1)
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *args):
+        self.shutdown()
+
+    def submit_async(self, fn, *args, **kwargs):
+        loop = asyncio.get_event_loop()
+        return loop.run_in_executor(self, fn, *args, **kwargs)
 
 class DuckDBConnection:
     """Pool de conexões thread-safe para DuckDB"""
@@ -79,31 +91,33 @@ class DuckDBConnection:
 
     def __init__(self):
         self.conn = None
+        self.conn_id = None
 
     def __enter__(self):
         with self._lock:
             if self._conn_pool:
                 self.conn = self._conn_pool.pop()
-                logging.debug("Usando conexão existente do pool")
+                self.conn_id = id(self.conn)
+                logging.debug(f"Reutilizando conexão {self.conn_id}")
             else:
                 self.conn = duckdb.connect()
-                logging.debug("Nova conexão DuckDB criada")
+                self.conn_id = id(self.conn)
+                logging.debug(f"Nova conexão {self.conn_id} criada")
             return self.conn
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         with self._lock:
-            if self.conn and len(self._conn_pool) < self._max_pool_size:
-                try:
-                    # Resetar a conexão para estado limpo
-                    self.conn.execute("RESET ALL")
-                    self._conn_pool.append(self.conn)
-                    logging.debug("Conexão devolvida ao pool")
-                except duckdb.Error as e:
-                    logging.error(f"Erro ao resetar conexão: {str(e)}")
-                    self.conn.close()
-            elif self.conn:
+            try:
+                if self.conn.transaction:
+                    self.conn.execute("ROLLBACK")
+                self.conn.execute("RESET ALL")
+                self._conn_pool.append(self.conn)
+                logging.debug(f"Conexão {self.conn_id} devolvida ao pool")
+            except Exception as e:
+                logging.error(f"Erro ao resetar conexão {self.conn_id}: {str(e)}")
                 self.conn.close()
-            self.conn = None
+            finally:
+                self.conn = None
 
     @classmethod
     def initialize_pool(cls):

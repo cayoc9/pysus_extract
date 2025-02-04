@@ -43,6 +43,8 @@ async def lifespan(app: FastAPI):
         logging.error(f"Erro na conexão com o banco de dados: {str(e)}")
         raise
     
+    # Inicialização
+    DuckDBConnection.initialize_pool()
     yield
     
     engine.dispose()
@@ -768,14 +770,7 @@ def build_query(file_path: str, params: QueryParams) -> str:
         FROM '{file_path}'
     """
 
-@app.on_event("startup")
-async def startup_event():
-    DuckDBConnection.initialize_pool()
-    # Resto da inicialização...
-
-# ---------------------------------------------------------------------------
-# Criação da aplicação FastAPI (DEVE SER A ÚLTIMA COISA NO ARQUIVO)
-# ---------------------------------------------------------------------------
+# Criação do app deve vir primeiro
 app = FastAPI(
     title="DataSUS API",
     description="API para processamento de dados do DataSUS",
@@ -783,16 +778,7 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Configuração CORS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# Adicionar rota principal APÓS a criação do app
+# Agora o app está definido
 @app.post("/query", tags=["Main"])
 async def query_data(params: QueryParams, background_tasks: BackgroundTasks):
     """Endpoint principal sem autenticação"""
