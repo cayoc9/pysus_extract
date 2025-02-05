@@ -1,45 +1,78 @@
 import logging
 import os
 import datetime
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 from dotenv import load_dotenv
 import duckdb
 import pandas as pd
 from sqlalchemy import create_engine, text
 from urllib.parse import quote_plus
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Request, Query
 from fastapi.middleware.cors import CORSMiddleware
-# Removido temporariamente:
-# from fastapi.security i\mport HTTPBearer, HTTPAuthorizationCredentials
-# from jose import JWTError, jwt
 from pydantic import BaseModel, Field, field_validator
 from datetime import datetime
 import logging.handlers
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from fastapi import BackgroundTasks, Request
 from uuid import uuid4
 import psutil
 import time
 import json
 from io import StringIO
 import traceback
-from resource import getrusage, RUSAGE_SELF
 import threading
 from queue import PriorityQueue
 from asyncio import Semaphore
 import gc
 from fastapi.responses import JSONResponse
-import io
 import csv
 import numpy as np
 from collections import defaultdict
 import re
 import logging.config
+import psycopg2
+import tempfile
+import shutil
+from sqlalchemy.pool import NullPool
 
-# Adicionar no início com outras declarações globais
-task_lock = threading.Lock()
+# -----------------------------------------------------------------------------
+# Configurações iniciais e carregamento do ambiente
+# -----------------------------------------------------------------------------
+load_dotenv(override=True)
+os.environ.update(os.environ)
 
-# Dicionário de mapeamento para nomes de grupos
+# Configurar logging (arquivo + console)
+LOG_DIR = "logs"
+os.makedirs(LOG_DIR, exist_ok=True)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler(os.path.join(LOG_DIR, "app.log")),
+        logging.StreamHandler()
+    ]
+)
+
+# -----------------------------------------------------------------------------
+# Variáveis de ambiente para o PostgreSQL
+# -----------------------------------------------------------------------------
+DB_USER = os.getenv('DB_USER')
+DB_PASSWORD = os.getenv('DB_PASSWORD')
+DB_HOST = os.getenv('DB_HOST')
+DB_PORT = os.getenv('DB_PORT')
+DB_NAME = os.getenv('DB_NAME')
+DB_PASSWORD_ENCODED = quote_plus(DB_PASSWORD)
+
+# Cria engine sem pool persistente
+engine = create_engine(
+    f'postgresql+psycopg2://{DB_USER}:{DB_PASSWORD_ENCODED}@{DB_HOST}:{DB_PORT}/{DB_NAME}',
+    poolclass=NullPool,
+    connect_args={'options': '-c statement_timeout=15000'}  # 15s timeout
+)
+
+# -----------------------------------------------------------------------------
+# Dicionários de configuração (ex.: mapeamento de grupos, schemas, etc.)
+# -----------------------------------------------------------------------------
+# (Aqui você insere os seus dicionários de grupos e mapeamento de colunas, conforme seu código.)
 grupos_dict = {
     'AB': 'APAC_de_Cirurgia_Bariatrica',
     'ABO': 'APAC_de_Acompanhamento_Pos_Cirurgia_Bariatrica',
@@ -99,6 +132,7 @@ CAMPOS_CNES = {
     "ER": "CNES"
 }
 
+# Exemplo: GRUPOS_INFO – adicione aqui o seu dicionário completo de schemas
 GRUPOS_INFO = {
     "RD": {
         "tabela": "sih_aih_reduzida",
@@ -442,11 +476,11 @@ GRUPOS_INFO = {
             "sp_financ": "NUMERIC(2,0)",
             "sp_co_faec": "NUMERIC(10,0)",
             "sp_pf_cbo": "NUMERIC(6,0)",
-            "sp_pf_doc": "NUMERIC(11,0)",
+            "sp_pf_doc": "NUMERIC(15,0)",
             "sp_pj_doc": "NUMERIC(14,0)",
             "in_tp_val": "NUMERIC(1,0)",
             "sequencia": "NUMERIC(5,0)",
-            "remessa": "NUMERIC(6,0)",
+            "remessa": "TEXT",
             "serv_cla": "NUMERIC(4,0)",
             "sp_cidpri": "TEXT",
             "sp_cidsec": "TEXT",
@@ -455,54 +489,9 @@ GRUPOS_INFO = {
         }
     }
 }
-
-# ---------------------------------------------------------------------------
-# Configurações básicas
-# ---------------------------------------------------------------------------
-load_dotenv()
-
-# Configurações de logging atualizadas
-def setup_logging():
-    log_dir = 'logs'
-    if not os.path.exists(log_dir):
-        os.makedirs(log_dir)
-    
-    base_filename = os.path.join(log_dir, 'app.log')
-    
-    file_handler = logging.handlers.TimedRotatingFileHandler(
-        filename=base_filename,
-        when='midnight',
-        interval=1,
-        backupCount=7,
-        encoding='utf-8'
-    )
-    file_handler.suffix = "%Y-%m-%d.log"
-    file_handler.namer = lambda name: name.replace(".log", "") + ".log"
-    
-    formatter = logging.Formatter('%(asctime)s %(levelname)s:%(message)s')
-    file_handler.setFormatter(formatter)
-    
-    # Mover a configuração para dentro da função
-    logging.basicConfig(
-        level=logging.INFO,
-        handlers=[file_handler, logging.StreamHandler()],
-        force=True
-    )
-
-# Chamar a configuração no início da execução
-setup_logging()
-
-# Configurações do banco de dados
-DB_USER = os.getenv('DB_USER')
-DB_PASSWORD = os.getenv('DB_PASSWORD')
-DB_HOST = os.getenv('DB_HOST')
-DB_PORT = os.getenv('DB_PORT')
-DB_NAME = os.getenv('DB_NAME')
-DB_PASSWORD_ENCODED = quote_plus(DB_PASSWORD)
-
-# ---------------------------------------------------------------------------
-# Modelo de dados para parâmetros da consulta
-# ---------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
+# Modelo de Dados para Parâmetros da Consulta
+# -----------------------------------------------------------------------------
 class QueryParams(BaseModel):
     base: str
     grupo: str
@@ -511,10 +500,7 @@ class QueryParams(BaseModel):
     competencia_inicio: str
     competencia_fim: str
     table_name: Optional[str] = None
-    consulta_personalizada: Optional[str] = Field(
-        None,
-        description="Consulta SQL personalizada a ser aplicada após o processamento inicial"
-    )
+    consulta_personalizada: Optional[str] = None
     
     @field_validator('base')
     def validate_base(cls, v):
@@ -537,20 +523,11 @@ class QueryParams(BaseModel):
             datetime.strptime(v, '%m/%Y')
         except ValueError:
             raise ValueError('Formato inválido. Use MM/YYYY')
-        
-        current_year = datetime.now().year
-        month, year = map(int, v.split('/'))
-        if year < 1990 or year > current_year:
-            raise ValueError(f'Ano deve estar entre 1990 e {current_year}')
-        
-        if month < 1 or month > 12:
-            raise ValueError('Mês deve estar entre 01 e 12')
-        
         return v
 
-# ---------------------------------------------------------------------------
-# Função de coleta de arquivos parquet
-# ---------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
+# Funções de Utilidade para Processamento e Conversão
+# -----------------------------------------------------------------------------
 def log_execution(message: str, is_start: bool = True) -> None:
     marker = ">>>" if is_start else "<<<"
     logging.info(f"{marker} {message}")
@@ -558,452 +535,289 @@ def log_execution(message: str, is_start: bool = True) -> None:
 def get_parquet_files(base: str, grupo: str, comp_inicio: str, comp_fim: str) -> List[str]:
     log_execution("Iniciando busca de arquivos Parquet")
     import glob
-    ufs = [
-        'AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG',
-        'PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'
-    ]
-    logging.info(
-        f"[get_parquet_files] Iniciando coleta de arquivos: base={base}, grupo={grupo}, "
-        f"intervalo={comp_inicio} até {comp_fim}"
-    )
+    ufs = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG',
+           'PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO']
+    logging.info(f"[get_parquet_files] Parâmetros: base={base}, grupo={grupo}, intervalo={comp_inicio} a {comp_fim}")
+    
     files = []
     start_date = datetime.strptime(comp_inicio, '%m/%Y')
     end_date = datetime.strptime(comp_fim, '%m/%Y')
     current_date = start_date
     while current_date <= end_date:
-        year_suffix = current_date.strftime('%y')
-        month = current_date.strftime('%m')
+        periodo = current_date.strftime('%y%m')
         for uf in ufs:
-            pattern = (
-                f"parquet_files/{base}/{grupo}/"
-                f"{grupo}{uf}{year_suffix}{month}.parquet/*.parquet"
-            )
-            logging.debug(f"[get_parquet_files] Buscando arquivos com pattern: {pattern}")
-            matching_files = glob.glob(pattern)
-            if matching_files:
-                logging.info(
-                    f"[get_parquet_files] Encontrados {len(matching_files)} arquivos "
-                    f"para {uf} em {month}/{year_suffix}."
-                )
-                files.extend(matching_files)
+            nome_pasta = f"{grupo}{uf}{periodo}.parquet"
+            caminho = os.path.join("parquet_files", base, grupo, nome_pasta)
+            if os.path.isdir(caminho):
+                found = glob.glob(os.path.join(caminho, "*.parquet"))
+                if found:
+                    logging.info(f"Encontrados {len(found)} arquivos em {nome_pasta}")
+                    files.extend(found)
+                else:
+                    logging.debug(f"Pasta {nome_pasta} vazia")
+            else:
+                logging.debug(f"Pasta não encontrada: {caminho}")
+        # Avança para o próximo mês
         if current_date.month == 12:
             current_date = current_date.replace(year=current_date.year + 1, month=1)
         else:
             current_date = current_date.replace(month=current_date.month + 1)
-    total_files = len(files)
-    if total_files > 0:
-        logging.info(f"[get_parquet_files] Total de arquivos encontrados: {total_files}")
-    else:
-        logging.warning("[get_parquet_files] Nenhum arquivo encontrado para o período.")
+    logging.info(f"Total de arquivos coletados: {len(files)}")
     log_execution("Finalizada busca de arquivos Parquet", False)
     return files
 
-# ---------------------------------------------------------------------------
-# Conversão e tratamento de tipos de dados
-# ---------------------------------------------------------------------------
 def get_schema_info(grupo: str) -> dict:
-    """Busca schema com tratamento de case e fallback"""
     grupo = grupo.strip().upper()
-    
-    # Tentativa 1: Match exato
     if grupo in GRUPOS_INFO:
         return GRUPOS_INFO[grupo]
-    
-    # Tentativa 2: Match parcial
     for key in GRUPOS_INFO:
         if key.startswith(grupo):
             return GRUPOS_INFO[key]
-    
-    # Fallback e logging
     logging.warning(f"Schema padrão utilizado para {grupo}")
     return {}
 
-def create_error_columns(df, grupo):
+def create_error_columns(df: pd.DataFrame, grupo: str) -> pd.DataFrame:
     schema = get_schema_info(grupo)
-    error_cols = {}
-    
-    for col in schema['colunas']:
-        error_col = f'erro_{col}'
-        error_cols[error_col] = pd.Series(dtype='object')
-    
-    return df.assign(**error_cols)
+    for col in schema.get('colunas', {}):
+        df[f"new_{col}"] = df[col]  # Cria uma nova coluna com os valores originais
+    return df
 
 def convert_datatypes(df: pd.DataFrame, grupo: str) -> pd.DataFrame:
-    """Versão otimizada com tratamento por tipo de dado"""
+    """
+    Converte os tipos de dados de um DataFrame de acordo com o schema definido para o grupo.
+    
+    Args:
+        df (pd.DataFrame): DataFrame com os dados brutos a serem convertidos
+        grupo (str): Grupo/tabela para obter o schema de conversão
+        
+    Returns:
+        pd.DataFrame: DataFrame com tipos de dados convertidos e colunas de erro
+        
+    Funcionamento:
+        1. Obtém o schema de tipos do grupo usando get_schema_info
+        2. Para cada coluna no schema:
+           - Converte valores numéricos (NUMERIC/INT) tratando valores inválidos
+           - Converte datas com múltiplos formatos e cria coluna de backup
+           - Converte booleanos tratando variações comuns
+           - Trata strings removendo espaços em branco
+        3. Preserva valores originais em colunas new_{col} quando há erros
+        4. Registra erros e gera logs detalhados
+    """
     schema = get_schema_info(grupo)
     error_stats = defaultdict(int)
-    
-    # Etapa 1: Sanitização básica
     df = df.apply(lambda col: col.astype(str).str.strip() if col.dtype == 'object' else col)
     
-    # Etapa 2: Processamento por coluna
     for col, dtype in schema.get('colunas', {}).items():
         if col not in df.columns:
             continue
-            
         dtype = dtype.upper()
         original = df[col].copy()
-        
         try:
-            # Converter para numérico
             if any(nt in dtype for nt in ['NUMERIC', 'INT']):
-                df[col] = pd.to_numeric(
-                    df[col].replace({'': pd.NA, ' ': pd.NA}),
-                    errors='coerce'
-                )
-                validate_numeric_column(df[col], dtype)
-                
-            # Converter datas
+                df[col] = pd.to_numeric(df[col].replace({'': pd.NA, ' ': pd.NA}), errors='coerce')
+                error_mask = df[col].isna() & original.notna()
+                if error_mask.sum() > 0:
+                    df[f"new_{col}"] = original
+                    df[col] = pd.NA
             elif 'DATE' in dtype:
-                df[col] = pd.to_datetime(
-                    df[col],
-                    format='%Y%m%d',
-                    errors='coerce',
-                    exact=False
-                )
-                validate_date_column(df[col])
-                
-            # Registrar erros
-            error_mask = df[col].isna() & original.notna()
-            if error_mask.any():
-                handle_conversion_errors(col, original, error_mask, df)
-                error_stats[col] += error_mask.sum()
-                
+                df[col] = pd.to_datetime(df[col], format='%Y%m%d', errors='coerce', exact=False)
+                error_mask = df[col].isna() & original.notna()
+                if error_mask.sum() > 0:
+                    df[f"new_{col}"] = original
+                    df[col] = pd.NaT
+            elif 'BOOLEAN' in dtype:
+                df[col] = df[col].apply(lambda x: False if str(x).lower() in ['0', 'false', 'f'] else True)
+            else:
+                df[col] = df[col].astype('string')
         except Exception as e:
-            log_conversion_error(col, original, e)
+            logging.error(f"Erro na conversão da coluna {col}: {str(e)}")
             raise
-    
-    log_conversion_stats(error_stats, df)
+    logging.info(f"Conversão de tipos concluída.")
     return df
 
-def validate_numeric_column(series: pd.Series, dtype: str):
-    """Validação pós-conversão numérica"""
-    precision = re.search(r'\((\d+),(\d+)\)', dtype)
-    if precision:
-        int_part, dec_part = map(int, precision.groups())
-        max_value = 10**int_part - 10**-dec_part
-        if (series.abs() > max_value).any():
-            raise ValueError(f"Valores excedem a precisão definida {dtype}")
-
-def validate_date_column(series: pd.Series):
-    """Validação de datas futuras e inválidas"""
-    max_date = pd.Timestamp.now() + pd.DateOffset(years=1)
-    if (series > max_date).any():
-        raise ValueError("Datas futuras detectadas além do limite permitido")
-
-def handle_conversion_errors(col: str, original: pd.Series, mask: pd.Series, df: pd.DataFrame):
-    """Registro estruturado de erros"""
-    error_col = f'ERRO_{col}'
-    df[error_col] = np.where(mask, original, pd.NA)
+def validate_data_for_postgres(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Valida o DataFrame para garantir compatibilidade com o PostgreSQL.
     
-    # Log detalhado
-    error_sample = original[mask].head(5).tolist()
-    logging.warning(f"Erros na coluna {col}: {len(error_sample)} exemplos - {error_sample}")
-
-def log_conversion_stats(stats: dict, df: pd.DataFrame):
-    """Gera relatório de conversão"""
-    total_errors = sum(stats.values())
-    report = {
-        "total_errors": total_errors,
-        "columns": [
-            {
-                "column": col,
-                "errors": count,
-                "error_rate": f"{(count/len(df))*100:.2f}%"
-            } for col, count in stats.items()
-        ]
-    }
-    logging.info(json.dumps(report, indent=2))
-
-def get_cnes_column(grupo: str) -> str:
-    if isinstance(grupo, (list, tuple)):
-        grupo = grupo[0] if len(grupo) > 0 else "CNES"
-    
-    grupo_str = str(grupo).strip().upper()
-    return CAMPOS_CNES.get(grupo_str, "CNES")
-
-# ===========================================================================
-# Seção 0: Controle de Performance
-# ===========================================================================
-# Configurações de paralelismo
-MAX_CONCURRENT_SYNC = 1
-MAX_CONCURRENT_ASYNC = 2
-sync_semaphore = Semaphore(MAX_CONCURRENT_SYNC)
-async_semaphore = Semaphore(MAX_CONCURRENT_ASYNC)
-
-# Na Seção 0: Controle de Performance
-MAX_MEMORY = 12  # Total de RAM disponível em GB
-SAFE_THRESHOLD = 0.7  # 70% de uso seguro
-CRITICAL_THRESHOLD = 0.9  # 90% para modo emergencial
-
-MAX_THREADS = 4  # Baseado nos 12GB RAM e 40GHz CPU
-
-def get_system_load():
-    mem = psutil.virtual_memory()
-    return {
-        'memory_percent': mem.percent,
-        'memory_free_gb': mem.available / (1024**3),
-        'cpu_percent': psutil.cpu_percent(interval=1)
-    }
-
-def calculate_max_workers():
-    mem = psutil.virtual_memory().available / (1024**3)  # Memória livre em GB
-    safe_workers = min(
-        int(mem // 0.5),  # 0.5GB por worker
-        int(40 * 0.7 // 2.5),  # 2.5GHz por worker
-        MAX_THREADS
-    )
-    return max(1, safe_workers)
-
-# Fila prioritária de tarefas
-task_queue = PriorityQueue()
-
-def process_worker():
-    while True:
-        with task_lock:
-            if not task_queue.empty():
-                priority, task = task_queue.get()
-                execute_task(task)
-        time.sleep(1)
-
-# Iniciar workers
-for _ in range(calculate_max_workers()):
-    threading.Thread(target=process_worker, daemon=True).start()
-
-# ===========================================================================
-# Seção 2: Processamento paralelo de arquivos
-# ===========================================================================
-def adjust_chunk_size(total_files: int) -> int:
-    mem = psutil.virtual_memory()
-    free_mem_gb = mem.available / (1024**3)
-    
-    # Estimativa conservadora (200MB por arquivo)
-    safe_size = int((free_mem_gb * 0.8) / 0.2)  # 80% da memória livre
-    
-    return max(50, min(
-        safe_size,
-        200,  # Máximo absoluto
-        total_files // 10  # Mínimo 10% dos arquivos
-    ))
-
-def process_parquet_files(files: List[str], params: QueryParams) -> pd.DataFrame:
-    # Etapa 1: Carregar e sanitizar
-    df = load_parquet_files(files)
-    df = sanitize_input_data(df)
-    
-    # Etapa 2: Processamento específico
-    df = convert_datatypes(df, params.grupo)
-    df = validate_data_for_postgres(df)
-    
-    # Etapa 3: Otimização final
-    return optimize_data_types(df, params.grupo, params)
-
-def load_parquet_files(files: List[str]) -> pd.DataFrame:
-    """Carrega arquivos com tratamento de erros"""
-    chunks = []
-    for file in files:
-        try:
-            chunk = pd.read_parquet(file)
-            chunks.append(chunk)
-        except Exception as e:
-            logging.error(f"Erro ao ler {file}: {str(e)}")
-    return pd.concat(chunks, ignore_index=True)
-
-def process_chunk_with_duckdb(files: List[str], params: QueryParams) -> pd.DataFrame:
-    try:
-        # Touchpoint 9: Antes do processamento
-        logging.debug(f"[process_chunk] Processando {len(files)} arquivos")
+    Args:
+        df (pd.DataFrame): DataFrame a ser validado
         
-        con = duckdb.connect()
-        cnes_column = get_cnes_column(params.grupo).upper()
+    Returns:
+        pd.DataFrame: DataFrame validado (inalterado se válido)
         
-        # Corrigir formatação dos arquivos
-        formatted_files = ', '.join([f"'{f}'" for f in files])
+    Funcionamento:
+        1. Verifica caracteres não-ASCII em colunas de texto
+        2. Valida comprimento máximo de strings (255 caracteres)
+        3. Ignora colunas de erro (prefixo 'ERRO_')
+        4. Levanta exceção com detalhes dos problemas encontrados
         
-        query = f"""
-        SELECT *
-        FROM read_parquet([{formatted_files}])
-        {f"WHERE {cnes_column} IN {tuple(params.cnes_list)}" if params.cnes_list != ["*"] else ""}
-        """
-        
-        # Executar query e normalizar colunas
-        df = con.execute(query).df()
-        df.columns = df.columns.str.lower()  # Conversão para minúsculas
-        
-        # Touchpoint 10: Após processamento DuckDB
-        logging.debug(f"[process_chunk] Resultado DuckDB - Shape: {df.shape}")
-        logging.debug(f"[process_chunk] Colunas: {df.columns.tolist()}")
-        logging.debug(f"[process_chunk] Tipos de dados: {df.dtypes.to_dict()}")
-        
-        return optimize_data_types(df, params.grupo, params)
-    
-    except Exception as e:
-        logging.error(f"[process_chunk] Erro no processamento: {str(e)}", exc_info=True)
-        raise
-    finally:
-        con.close()
-    
-def cleanup_memory(df: pd.DataFrame):
-    del df
-    gc.collect()
-    time.sleep(0.1)
-
-def process_chunk(files: List[str], params: QueryParams) -> pd.DataFrame:
-    try:
-        max_workers = min(4, len(files))
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            futures = [executor.submit(process_single_file, file, params) for file in files]
-            return pd.concat([future.result() for future in as_completed(futures)])
-    except Exception as e:
-        logging.error(f"Erro no processamento do chunk: {str(e)}")
-        return pd.DataFrame()
-    
-def check_memory_usage(threshold=0.7):
-    mem = psutil.virtual_memory()
-    if mem.percent > threshold * 100:
-        logging.warning(f"Uso de memória: {mem.percent}%")
-        gc.collect()
-        time.sleep(1)
-        mem = psutil.virtual_memory()
-        if mem.percent > threshold * 100:
-            raise MemoryError(f"Memória insuficiente ({mem.used/1024**3:.1f}GB usado)")
-
-def process_single_file(file_path: str, params: QueryParams) -> pd.DataFrame:
-    try:
-        check_memory_usage()
-        
-        # Conexão DuckDB
-        con = duckdb.connect()
-        cnes_column = get_cnes_column(params.grupo).upper()  # Garantir maiúsculas
-        
-        # Query otimizada
-        query = f"""
-        SELECT *
-        FROM read_parquet('{file_path}', hive_partitioning=1)
-        WHERE {cnes_column} IN ({','.join([f"'{cnes}'" for cnes in params.cnes_list])})
-        """ if params.cnes_list != ["*"] else f"""
-        SELECT * FROM read_parquet('{file_path}', hive_partitioning=1)
-        """
-        
-        # Execução com controle de memória
-        df = con.execute(query).df()
-        con.close()
-        
-        # Normalizar nomes de colunas
-        df.columns = df.columns.str.upper()
-        
-        # Nova etapa de limpeza
-        df.replace(r'^\s*$', pd.NA, regex=True, inplace=True)
-        df = optimize_data_types(df, params.grupo, params)
-        
-        return df
-        
-    except duckdb.CatalogException as e:
-        logging.error(f"Coluna {cnes_column} não encontrada em {file_path}")
-        return pd.DataFrame()
-    except Exception as e:
-        logging.error(f"Erro em {file_path}: {str(e)}")
-        return pd.DataFrame()
-
-def optimize_data_types(df: pd.DataFrame, grupo: str, params: QueryParams) -> pd.DataFrame:
-    """Processa apenas colunas relevantes"""
-    relevant_cols = {
-        col.lower() 
-        for col in params.campos_agrupamento + [get_cnes_column(grupo)]
-    }
-    
+    Exceptions:
+        ValueError: Se encontrar dados incompatíveis com o PostgreSQL
+    """
     for col in df.columns:
-        col_lower = col.lower()
-        if col_lower not in relevant_cols:
+        if col.startswith('ERRO_'):
             continue
-        
-        # ... existing conversion logic with error columns ...
-    
+        if df[col].dtype == 'object':
+            invalid = df[col].str.contains(r'[^\x00-\x7F]', na=False)
+            if invalid.any():
+                raise ValueError(f"Caracteres não-ASCII na coluna {col}")
+    max_lengths = df.select_dtypes(include='object').apply(lambda x: x.str.len().max())
+    for col, length in max_lengths.items():
+        if length and length > 255:
+            raise ValueError(f"Coluna {col} excede 255 caracteres")
     return df
 
 def apply_filters(df: pd.DataFrame, params: QueryParams) -> pd.DataFrame:
     if params.cnes_list != ["*"]:
-        cnes_column = get_cnes_column(params.grupo).upper()  # Forçar maiúsculas
-        df.columns = df.columns.str.upper()  # Normalizar colunas
-        
+        cnes_column = get_cnes_column(params.grupo).upper()
+        df.columns = df.columns.str.upper()
         if cnes_column not in df.columns:
             raise KeyError(f"Coluna {cnes_column} não encontrada no DataFrame")
-        
         return df[df[cnes_column].isin(params.cnes_list)]
     return df
 
-# ===========================================================================
-# Seção 3: Endpoints assíncronos e paginação
-# ===========================================================================
+# -----------------------------------------------------------------------------
+# Função para dividir um CSV grande em chunks menores
+# -----------------------------------------------------------------------------
+def split_csv(file_path: str, lines_per_chunk: int, output_dir: str) -> List[str]:
+    os.makedirs(output_dir, exist_ok=True)
+    chunk_files = []
+    with open(file_path, 'r', encoding='utf-8') as f:
+        header = f.readline()
+        chunk_num = 0
+        lines = []
+        for line in f:
+            lines.append(line)
+            if len(lines) >= lines_per_chunk:
+                chunk_filename = os.path.join(output_dir, f"chunk_{chunk_num}.csv")
+                with open(chunk_filename, 'w', encoding='utf-8') as chunk_file:
+                    chunk_file.write(header)
+                    chunk_file.writelines(lines)
+                chunk_files.append(chunk_filename)
+                chunk_num += 1
+                lines = []
+        if lines:
+            chunk_filename = os.path.join(output_dir, f"chunk_{chunk_num}.csv")
+            with open(chunk_filename, 'w', encoding='utf-8') as chunk_file:
+                chunk_file.write(header)
+                chunk_file.writelines(lines)
+            chunk_files.append(chunk_filename)
+    return chunk_files
+
+# -----------------------------------------------------------------------------
+# Função de salvamento otimizado utilizando COPY e chunks
+# -----------------------------------------------------------------------------
+def save_results(df: pd.DataFrame, table_name: str, params: QueryParams) -> None:
+    """Processo completo de salvamento com validação"""
+    try:
+        # 1. Exportar schema do DuckDB
+        schema_sql = export_schema(df, table_name)
+        
+        # 2. Criar tabela no PostgreSQL
+        with engine.connect() as conn:
+            conn.execute(text(schema_sql))
+            logging.info(f"Tabela {table_name} criada com sucesso")
+        
+        # 3. Gerar CSV formatado
+        temp_dir = tempfile.mkdtemp()
+        temp_csv = os.path.join(temp_dir, 'data.csv')
+        
+        df.to_csv(
+            temp_csv,
+            index=False,
+            header=True,
+            na_rep='\\N',
+            quoting=csv.QUOTE_MINIMAL,
+            escapechar='\\',
+            date_format='%Y-%m-%d',
+            encoding='utf-8'
+        )
+        
+        # 4. Validar amostra
+        if not validate_csv_sample(temp_csv, table_name):
+            raise ValueError("Falha na validação do CSV")
+        
+        # 5. Fazer upload completo
+        with engine.connect() as conn:
+            with conn.connection.cursor() as cursor:
+                with open(temp_csv, 'r') as f:
+                    cursor.copy_expert(
+                        f"COPY {table_name} FROM STDIN WITH (FORMAT CSV, HEADER TRUE, NULL '\\N')",
+                        f
+                    )
+            conn.commit()
+        
+        logging.info(f"Dados carregados com sucesso na tabela {table_name}")
+        
+    except Exception as e:
+        logging.error(f"Erro no processo de salvamento: {str(e)}")
+        raise
+    finally:
+        if os.path.exists(temp_dir):
+            shutil.rmtree(temp_dir)
+
+# -----------------------------------------------------------------------------
+# Endpoints FastAPI
+# -----------------------------------------------------------------------------
+app = FastAPI(title="DataSUS API")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# -----------------------------------------------------------------------------
+# Variáveis globais para gerenciamento de tarefas
+# -----------------------------------------------------------------------------
+task_lock = threading.Lock()
+task_queue = PriorityQueue()
 async_jobs = {}
 
-# Crie a instância app primeiro
-app = FastAPI(title="DataSUS API")
-
-def format_response(df: pd.DataFrame) -> dict:
-    """Formata a resposta da API com metadados"""
-    return {
-        "data": df.to_dict(orient='records'),
-        "metadata": {
-            "row_count": len(df),
-            "columns": list(df.columns),
-            "dtypes": str(df.dtypes.to_dict()),
-            "generated_at": datetime.now().isoformat()
-        }
-    }
-
+# -----------------------------------------------------------------------------
+# Endpoint principal para consulta
+# -----------------------------------------------------------------------------
 @app.post("/query", tags=["Main"])
 async def query_data(params: QueryParams, background_tasks: BackgroundTasks):
+    logging.info(f"Nova requisição: {params.model_dump()}")
     files = get_parquet_files(params.base, params.grupo, params.competencia_inicio, params.competencia_fim)
-    
     if not files:
-        raise HTTPException(404, "Nenhum arquivo encontrado")
-    
-    if len(files) > 1000:  # Processamento assíncrono para grandes volumes
-        task_id = str(uuid4())
-        task_manager.add_task((files, params), priority=1)
-        return {"task_id": task_id, "status": "queued"}
-    
-    # Processamento síncrono para pequenos volumes
-    result = process_parquet_files(files, params)
-    return format_response(result)
+        logging.error("Nenhum arquivo encontrado")
+        raise HTTPException(status_code=404, detail="Nenhum arquivo encontrado")
+    start_time = datetime.now().isoformat()
+    logging.info(f"Iniciando processamento de {len(files)} arquivos às {start_time}")
+    background_tasks.add_task(lambda: process_with_logging(files, params, start_time))
+    return {
+        "status": "processing",
+        "start_time": start_time,
+        "total_files": len(files),
+        "message": "Processamento iniciado. Verifique os logs para detalhes."
+    }
+
+def process_with_logging(files: List[str], params: QueryParams, start_time: str):
+    try:
+        adaptive_processing(files, params)
+        logging.info("Processamento concluído com sucesso")
+    except Exception as e:
+        logging.critical(f"Erro catastrófico: {str(e)}\n{traceback.format_exc()}")
+        raise
 
 @app.post("/query/async", tags=["Async Operations"])
-async def async_query(
-    params: QueryParams,
-    background_tasks: BackgroundTasks
-) -> Dict[str, str]:
-    async with async_semaphore:
-        load = get_system_load()
-        priority = 1 if load['memory_free_gb'] < 6 else 5
-        add_task_with_priority((params, background_tasks), priority)
-        
+async def async_query(params: QueryParams, background_tasks: BackgroundTasks) -> Dict[str, str]:
+    async with Semaphore(1):
         job_id = str(uuid4())
         async_jobs[job_id] = {
             "status": "processing",
             "start_time": datetime.now().isoformat(),
             "progress": 0
         }
-        
         def task_processor():
             try:
-                files = get_parquet_files(
-                    params.base,
-                    params.grupo,
-                    params.competencia_inicio,
-                    params.competencia_fim
-                )
-                
-                total_files = len(files)
-                async_jobs[job_id]["total_files"] = total_files
-                
+                files = get_parquet_files(params.base, params.grupo, params.competencia_inicio, params.competencia_fim)
                 result_df = process_parquet_files(files, params)
-                
-                grupo_mapped = grupos_dict.get(params.grupo, params.grupo)
-                table_name = params.table_name if params.table_name else f"{params.base.lower()}_{grupo_mapped.lower()}"
-                
+                table_name = params.table_name if params.table_name else GRUPOS_INFO[params.grupo]['tabela']
                 save_results(result_df, table_name, params)
-                
                 async_jobs[job_id].update({
                     "status": "completed",
                     "end_time": datetime.now().isoformat(),
@@ -1016,182 +830,22 @@ async def async_query(
                     "error": str(e),
                     "end_time": datetime.now().isoformat()
                 })
-        
         background_tasks.add_task(task_processor)
         return {"job_id": job_id, "status_url": f"/query/jobs/{job_id}"}
 
 @app.get("/query/jobs/{job_id}", tags=["Async Operations"])
 async def get_job_status(job_id: str):
-    """Verifica o status de um job assíncrono"""
     if job_id not in async_jobs:
-        raise HTTPException(
-            status_code=404,
-            detail=f"Job {job_id} não encontrado"
-        )
-    
+        raise HTTPException(status_code=404, detail=f"Job {job_id} não encontrado")
     return async_jobs[job_id]
 
-# ===========================================================================
-# Seção 4: Otimização do salvamento no PostgreSQL
-# ===========================================================================
-def memory_safe_operation(func):
-    def wrapper(*args, **kwargs):
-        soft_limit = MAX_MEMORY * SAFE_THRESHOLD
-        hard_limit = MAX_MEMORY * CRITICAL_THRESHOLD
-        
-        current_mem = getrusage(RUSAGE_SELF).ru_maxrss / (1024**2)
-        
-        if current_mem > soft_limit:
-            gc.collect()
-            if current_mem > hard_limit:
-                raise MemoryError("Limite crítico de memória atingido")
-        
-        return func(*args, **kwargs)
-    return wrapper
-
-# Decorar funções críticas
-@memory_safe_operation
-def save_results(df: pd.DataFrame, table_name: str, params: QueryParams):
-    try:
-        # Log inicial com amostra dos dados
-        logging.info(f"Iniciando salvamento na tabela {table_name}")
-        logging.info(f"Total de registros: {len(df)}")
-        logging.info(f"Amostra de dados (primeiras 3 linhas):\n{df.head(3).to_dict('records')}")
-        
-        # Validação e limpeza dos dados antes do COPY
-        df = validate_data_for_postgres(df)
-        
-        # Preparar dados para COPY
-        csv_buffer = io.StringIO()
-        
-        # Adicionar mais padrões de limpeza
-        df = df.replace({
-            'nan': pd.NA,
-            'None': pd.NA,
-            'null': pd.NA,
-            '\\N': pd.NA,
-            'NULL': pd.NA,
-            '': pd.NA,
-            '        ': pd.NA,
-            '00000000': pd.NA
-        })
-        
-        # Configuração especial para to_csv para lidar com nulos
-        df.to_csv(
-            csv_buffer,
-            index=False,
-            header=False,
-            na_rep='\\N',  # Formato PostgreSQL para NULL
-            quoting=csv.QUOTE_MINIMAL,
-            escapechar='\\',
-            date_format='%Y-%m-%d'  # Formato PostgreSQL para datas
-        )
-        
-        csv_buffer.seek(0)
-        
-        # Conexão e COPY
-        engine = create_engine(
-            f'postgresql+psycopg2://{DB_USER}:{DB_PASSWORD_ENCODED}@{DB_HOST}:{DB_PORT}/{DB_NAME}'
-        )
-        
-        with engine.connect() as connection:
-            with connection.connection.cursor() as cursor:
-                # Verificar se a tabela existe
-                cursor.execute("""
-                    SELECT EXISTS (
-                        SELECT FROM information_schema.tables 
-                        WHERE table_name = %s
-                    )
-                """, (table_name,))
-                
-                table_exists = cursor.fetchone()[0]
-                
-                if table_exists:
-                    # Nova etapa: Limpar dados existentes
-                    logging.info(f"Limpando dados existentes na tabela {table_name}")
-                    cursor.execute(f"TRUNCATE TABLE {table_name}")
-                    connection.connection.commit()
-                else:
-                    logging.info(f"Tabela {table_name} não existe. Criando...")
-                    
-                    grupo = params.grupo.upper()
-                    schema_info = GRUPOS_INFO.get(grupo, {}).get('colunas', {})
-                    
-                    if not schema_info:
-                        raise ValueError(f"Schema não encontrado para o grupo {grupo}")
-                    
-                    columns_def = []
-                    for col in df.columns:
-                        # Usar nome original mantendo o case do schema
-                        original_col = col.upper()  # Ajuste para match com GRUPOS_INFO
-                        col_type = schema_info.get(original_col, 'TEXT')
-                        
-                        # Adicionar escaping para nomes reservados
-                        columns_def.append(f'"{col}" {col_type}')  # Aspas duplas para case-sensitive
-
-                    # Query de criação com IF NOT EXISTS
-                    create_table_sql = f"""
-                    CREATE TABLE IF NOT EXISTS {table_name} (
-                        {','.join(columns_def)}
-                    )
-                    """
-                    
-                    cursor.execute(create_table_sql)
-                    connection.connection.commit()
-                    logging.info(f"Tabela {table_name} criada com sucesso")
-
-                # Comando COPY com tratamento de nulos (existente)
-                # ... (restante do código existente)
-
-    except Exception as e:
-        logging.error(f"Erro crítico no save_results: {str(e)}", exc_info=True)
-        raise
-    finally:
-        if 'engine' in locals():
-            engine.dispose()
-
-def validate_data_for_postgres(df: pd.DataFrame) -> pd.DataFrame:
-    """Validação final antes do INSERT"""
-    # Verificar tipos de dados
-    for col in df.columns:
-        if col.startswith('ERRO_'):
-            continue
-            
-        if df[col].dtype == 'object':
-            invalid = df[col].str.contains(r'[^\x00-\x7F]', na=False)
-            if invalid.any():
-                raise ValueError(f"Caracteres não-ASCII na coluna {col}")
-    
-    # Verificar tamanho máximo de strings
-    max_lengths = df.select_dtypes(include='object').apply(lambda x: x.str.len().max())
-    for col, length in max_lengths.items():
-        if length > 255:
-            raise ValueError(f"Coluna {col} excede 255 caracteres")
-    
-    return df
-
-# ===========================================================================
-# Seção 5: Middleware de monitoramento de performance
-# ===========================================================================
-class StructuredMessage:
-    def __init__(self, message, **kwargs):
-        self.message = message
-        self.kwargs = kwargs
-    
-    def __str__(self):
-        return json.dumps({**self.kwargs, "message": self.message})
-
-def s_logger():
-    return StructuredMessage
-
-slog = s_logger()
-
-# Middleware de monitoramento de performance
+# -----------------------------------------------------------------------------
+# Middleware de Monitoramento de Performance
+# -----------------------------------------------------------------------------
 @app.middleware("http")
 async def resource_guard(request: Request, call_next):
     mem = psutil.virtual_memory()
     cpu = psutil.cpu_percent()
-    
     if mem.percent > 75 or cpu > 85:
         return JSONResponse(
             status_code=503,
@@ -1204,198 +858,223 @@ async def resource_guard(request: Request, call_next):
                 }
             }
         )
-    
     try:
-        return await call_next(request)
+        response = await call_next(request)
+        return response
     except MemoryError:
         return JSONResponse(
             status_code=500,
             content={"error": "out_of_memory", "message": "Memória insuficiente"}
         )
 
-# ---------------------------------------------------------------------------
-# Verifica conexão com banco de dados
-# ---------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
+# Verifica Conexão com o PostgreSQL
+# -----------------------------------------------------------------------------
 def verify_db_connection():
     try:
-        with create_engine(
-            f'postgresql+psycopg2://{DB_USER}:{DB_PASSWORD_ENCODED}@{DB_HOST}:{DB_PORT}/{DB_NAME}'
-        ).connect() as connection:
+        with engine.connect() as connection:
             connection.execute(text('SELECT 1'))
-            logging.info("Conexão com banco de dados verificada com sucesso")
+            logging.info("Conexão com o PostgreSQL verificada com sucesso")
     except Exception as e:
-        logging.error(f"Erro na conexão com banco de dados: {str(e)}")
+        logging.error(f"Erro na conexão com o PostgreSQL: {str(e)}")
         raise
 
-# ---------------------------------------------------------------------------
-# Execução local (uvicorn)
-# ---------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
+# Execução local com Uvicorn
+# -----------------------------------------------------------------------------
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
 
-def add_task_with_priority(task, priority=5):
-    with task_lock:
-        task_queue.put((priority, task))
-
-def execute_task(task):
-    try:
-        params, background_tasks = task
-        # Implementação do processamento assíncrono
-    except Exception as e:
-        logging.error(f"Erro na execução da tarefa: {e}")
-
-def adaptive_processing(files, params):
-    try:
-        return process_parquet_files(files, params)
-    except MemoryError:
-        logging.warning("Memória insuficiente, ativando modo seguro")
-        return process_in_chunks(files, params, chunk_size=1000)
-
-def process_in_chunks(files, params, chunk_size):
-    for i in range(0, len(files), chunk_size):
+# -----------------------------------------------------------------------------
+# Funções auxiliares de tarefas e processamento adaptativo (ATUALIZADA)
+# -----------------------------------------------------------------------------
+def adaptive_processing(files: List[str], params: QueryParams) -> None:
+    chunk_size = 50  # Tamanho inicial do chunk
+    total_files = len(files)
+    processed = 0
+    logging.info(f"Iniciando processamento adaptativo de {total_files} arquivos")
+    
+    for i in range(0, total_files, chunk_size):
         chunk = files[i:i+chunk_size]
-        yield process_parquet_files(chunk, params)
-        gc.collect()
-
-class TaskManager:
-    def __init__(self):
-        self.queue = PriorityQueue()
-        self.lock = threading.Lock()
-        self.active = False
-    
-    def start_workers(self):
-        self.active = True
-        for _ in range(4):  # 4 workers fixos
-            threading.Thread(target=self.process_queue, daemon=True).start()
-    
-    def add_task(self, task, priority=5):
-        with self.lock:
-            self.queue.put((priority, task))
-    
-    def process_queue(self):
-        while self.active:
-            with self.lock:
-                if not self.queue.empty():
-                    priority, task = self.queue.get()
-                    self.execute_task(task)
-            time.sleep(0.5)
-    
-    def execute_task(self, task):
+        logging.info(f"Processando chunk {i//chunk_size + 1} com {len(chunk)} arquivos")
+        
         try:
-            files, params = task
-            process_parquet_files(files, params)
+            # Processa o chunk atual
+            process_chunk_with_duckdb(chunk, params)
+            processed += len(chunk)
+            
+            # Calcula e loga o progresso
+            progress = (processed / total_files) * 100
+            logging.info(f"Progresso: {processed}/{total_files} arquivos ({progress:.1f}%) - Memória: {psutil.virtual_memory().percent}%")
+            
+            # Ajuste dinâmico do tamanho do chunk baseado no uso de memória
+            mem = psutil.virtual_memory()
+            if mem.percent > 70:
+                chunk_size = max(10, chunk_size // 2)
+                logging.warning(f"Reduzindo chunk size para {chunk_size} (Memória: {mem.percent}%)")
+            elif mem.percent < 30:
+                chunk_size = min(100, chunk_size * 2)
+                logging.info(f"Aumentando chunk size para {chunk_size} (Memória: {mem.percent}%)")
+                
         except Exception as e:
-            logging.error(f"Task failed: {str(e)}")
+            logging.error(f"Erro no chunk {i//chunk_size + 1}: {str(e)}")
+            raise
 
-task_manager = TaskManager()
-task_manager.start_workers()
-
-def log_resource_usage():
-    mem = psutil.virtual_memory()
-    cpu = psutil.cpu_percent()
-    logging.info(
-        f"Resource Usage - Memory: {mem.percent}% ({mem.used/1024**3:.1f}GB/"
-        f"{mem.total/1024**3:.1f}GB), CPU: {cpu}%"
-    )
-
-def check_memory(threshold=0.7):
-    mem = psutil.virtual_memory()
-    if mem.percent > threshold * 100:
-        logging.warning("Limite de memória excedido, iniciando coleta de lixo")
-        gc.collect()
-        if mem.percent > threshold * 100:
-            raise MemoryError(f"Uso de memória acima de {threshold*100}%")
-
-# Configuração do logger
-LOG_DIR = "logs"
-os.makedirs(LOG_DIR, exist_ok=True)
-
-formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-
-# Definir file_handler antes de usar
-file_handler = logging.FileHandler(os.path.join(LOG_DIR, "api.log"))
-file_handler.setLevel(logging.DEBUG)
-file_handler.setFormatter(formatter)
-
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
-logger.addHandler(file_handler)
-logger.addHandler(logging.StreamHandler())
-
-def validate_columns(df: pd.DataFrame, schema: dict):
-    schema_cols = set(col.lower() for col in schema.get('colunas', {}))
-    df_cols = set(df.columns.str.lower())
+# -----------------------------------------------------------------------------
+# Função para construção de query com tratamento de erros (ATUALIZADA)
+# -----------------------------------------------------------------------------
+def build_conversion_query(grupo: str) -> str:
+    """Constrói query de conversão com sintaxe corrigida para DuckDB"""
+    schema = GRUPOS_INFO[grupo]['colunas']
+    selects = []
     
-    missing = schema_cols - df_cols
-    if missing:
-        logging.warning(f"Colunas faltando no DataFrame: {missing}")
-    
-    extra = df_cols - schema_cols
-    if extra:
-        logging.info(f"Colunas extras detectadas: {extra}")
-
-def validate_numeric_columns(df: pd.DataFrame, schema: dict):
-    for col, dtype in schema['colunas'].items():
+    for col, dtype in schema.items():
         if 'NUMERIC' in dtype:
-            invalid = df[col].apply(lambda x: not str(x).strip().isdigit() if pd.notna(x) else False)
-            if invalid.any():
-                logging.warning(f"Valores não numéricos na coluna {col}: {df[col][invalid].tolist()}")
-
-def get_numeric_columns(grupo: str) -> list:
-    schema = GRUPOS_INFO[grupo]["colunas"]
-    return [
-        col.lower() for col, dtype in schema.items()
-        if any(nt in dtype.upper() for nt in ['NUMERIC', 'INT', 'SMALLINT', 'BIGINT'])
-    ]
-
-def sanitize_input_data(df: pd.DataFrame) -> pd.DataFrame:
-    """Limpeza geral antes do processamento"""
-    # Remover espaços em branco
-    df = df.apply(lambda col: col.str.strip() if col.dtype == 'object' else col)
+            # Sintaxe corrigida usando TRY_CAST padrão
+            selects.append(
+                f"TRY_CAST({col} AS {dtype}) AS {col}, "
+                f"CASE WHEN {col} IS NOT NULL AND TRY_CAST({col} AS {dtype}) IS NULL "
+                f"THEN 'ERRO_NUMERICO' ELSE NULL END AS new_{col}_error"
+            )
+        elif 'DATE' in dtype:
+            selects.append(
+                f"COALESCE("
+                f"TRY_CAST(strptime({col}, '%Y%m%d') AS DATE), "
+                f"TRY_CAST(strptime({col}, '%d/%m/%Y') AS DATE)"
+                f") AS {col}, "
+                f"CASE WHEN {col} IS NOT NULL THEN 'FORMATO_INVALIDO' ELSE NULL END AS new_{col}_error"
+            )
+        elif 'BOOLEAN' in dtype:
+            selects.append(
+                f"CASE WHEN UPPER({col}) IN ('1', 'T', 'TRUE', 'V') THEN TRUE "
+                f"WHEN UPPER({col}) IN ('0', 'F', 'FALSE') THEN FALSE "
+                f"ELSE NULL END AS {col}, "
+                f"CASE WHEN {col} IS NOT NULL AND "
+                f"UPPER({col}) NOT IN ('1', 'T', 'TRUE', 'V', '0', 'F', 'FALSE') "
+                f"THEN 'VALOR_BOOLEANO_INVALIDO' ELSE NULL END AS new_{col}_error"
+            )
+        else:
+            selects.append(
+                f"SUBSTR({col}, 1, 255) AS {col}, "
+                f"CASE WHEN LENGTH({col}) > 255 THEN 'TAMANHO_EXCEDIDO' "
+                f"WHEN {col} ~ '[^\\x00-\\x7F]' THEN 'CARACTERE_INVALIDO' "
+                f"ELSE NULL END AS new_{col}_error"
+            )
     
-    # Substituir valores vazios
-    replace_values = {
-        '': pd.NA,
-        'nan': pd.NA,
-        'null': pd.NA,
-        'none': pd.NA,
-        'undefined': pd.NA
+    return ", ".join(selects)
+
+def get_cnes_column(grupo: str) -> str:
+    """Obtém o nome da coluna CNES correspondente ao grupo"""
+    grupo = grupo.upper()
+    if grupo not in CAMPOS_CNES:
+        raise ValueError(f"Grupo {grupo} não possui mapeamento de CNES")
+    return CAMPOS_CNES[grupo]
+
+def process_parquet_files(files: List[str], params: QueryParams) -> pd.DataFrame:
+    """Processa arquivos Parquet com tratamento de erros detalhado"""
+    try:
+        # Constrói query de conversão
+        conversion_query = build_conversion_query(params.grupo)
+        
+        # Executa query no DuckDB
+        query = f"""
+            SELECT {conversion_query}
+            FROM read_parquet({files})
+        """
+        
+        # Executa e converte para DataFrame
+        df = duckdb.query(query).to_df()
+        
+        # Aplica filtros de CNES
+        return apply_filters(df, params)
+        
+    except Exception as e:
+        logging.error(f"Falha no processamento: {str(e)}")
+        # Extrair nome da coluna do erro
+        if "Erro na coluna" in str(e):
+            col_error = str(e).split(":")[0].replace("Erro na coluna ", "")
+            logging.error(f"COLUNA PROBLEMÁTICA: {col_error}")
+        raise
+
+def process_chunk_with_duckdb(chunk_files: List[str], params: QueryParams) -> pd.DataFrame:
+    """Processa chunk com log detalhado de erros"""
+    try:
+        # Constrói query de conversão para o grupo
+        conversion_query = build_conversion_query(params.grupo)
+        
+        # Executa query no DuckDB
+        query = f"""
+            SELECT {conversion_query}
+            FROM read_parquet({chunk_files})
+        """
+        
+        # Executa e retorna DataFrame processado
+        return duckdb.query(query).to_df()
+        
+    except Exception as e:
+        # Capturar detalhes do erro do DuckDB
+        error_msg = str(e)
+        if "Conversion Error" in error_msg:
+            col_match = re.search(r'column "(.*?)"', error_msg)
+            if col_match:
+                col_name = col_match.group(1)
+                logging.error(f"ERRO DE CONVERSÃO NA COLUNA: {col_name}")
+        logging.error(f"Detalhes do erro: {error_msg}")
+        raise
+
+def export_schema(df: pd.DataFrame, table_name: str) -> str:
+    """Exporta o schema do DataFrame para SQL PostgreSQL"""
+    type_mapping = {
+        'object': 'TEXT',
+        'int64': 'BIGINT',
+        'float64': 'DOUBLE PRECISION',
+        'bool': 'BOOLEAN',
+        'datetime64[ns]': 'DATE'
     }
-    return df.replace(replace_values)
+    
+    columns = []
+    for col, dtype in df.dtypes.items():
+        pg_type = type_mapping.get(str(dtype), 'TEXT')
+        columns.append(f'"{col}" {pg_type}')
+    
+    schema_sql = f"DROP TABLE IF EXISTS {table_name};\n"
+    schema_sql += f"CREATE TABLE {table_name} (\n"
+    schema_sql += ",\n".join(columns)
+    schema_sql += "\n);"
+    
+    schema_file = f"{table_name}_schema.sql"
+    with open(schema_file, 'w') as f:
+        f.write(schema_sql)
+    
+    return schema_sql
 
-def configure_logging():
-    """Configuração avançada de logging"""
-    logging.config.dictConfig({
-        'version': 1,
-        'formatters': {
-            'detailed': {
-                'format': '%(asctime)s %(levelname)-8s [%(name)s] %(message)s'
-            }
-        },
-        'handlers': {
-            'console': {
-                'class': 'logging.StreamHandler',
-                'formatter': 'detailed'
-            },
-            'file': {
-                'class': 'logging.handlers.RotatingFileHandler',
-                'filename': 'data_processing.log',
-                'maxBytes': 10*1024*1024,  # 10MB
-                'backupCount': 5,
-                'formatter': 'detailed'
-            }
-        },
-        'root': {
-            'level': 'INFO',
-            'handlers': ['console', 'file']
-        }
-    })
-
-def log_conversion_error(col: str, original: pd.Series, error: Exception):
-    """Registra erros de conversão com amostras"""
-    error_sample = original.head(5).tolist()
-    logging.error(
-        f"Erro na conversão da coluna {col}: {str(error)}\n"
-        f"Amostra de valores problemáticos: {error_sample}"
-    )
+def validate_csv_sample(csv_path: str, table_name: str) -> bool:
+    """Valida uma amostra do CSV contra o schema do PostgreSQL"""
+    try:
+        with engine.connect() as conn:
+            # Criar tabela temporária
+            temp_table = f"temp_{uuid4().hex[:8]}"
+            conn.execute(text(f"CREATE TEMP TABLE {temp_table} (LIKE {table_name})"))
+            
+            # Copiar amostra
+            sample_size = 1000
+            conn.execute(text(
+                f"COPY {temp_table} FROM PROGRAM 'head -n {sample_size} {csv_path}' "
+                "WITH (FORMAT CSV, HEADER TRUE, NULL '\\N')"
+            ))
+            
+            # Verificar consistência
+            result = conn.execute(text(
+                f"SELECT COUNT(*) AS errors FROM {temp_table} "
+                "WHERE " + " OR ".join([f"{col} IS NULL AND new_{col}_error IS NULL" for col in GRUPOS_INFO['colunas']])
+            )).fetchone()
+            
+            if result[0] > 0:
+                logging.error(f"Erros de validação encontrados: {result[0]}")
+                return False
+            return True
+            
+    except Exception as e:
+        logging.error(f"Falha na validação: {str(e)}")
+        return False
