@@ -3,6 +3,10 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.exc import SQLAlchemyError
 from dotenv import load_dotenv
 from datetime import datetime
+from utils.db_utils import (
+    listar_e_renomear_colunas_para_minusculo,
+    alterar_tipos_colunas_com_using
+)
 
 # Configuração do ambiente
 load_dotenv()
@@ -153,103 +157,6 @@ def log_result(query, message):
         log_file.write(f"Query: {query}\n")
         log_file.write(f"Resultado: {message}\n")
         log_file.write("=" * 50 + "\n")
-
-def listar_e_renomear_colunas_para_minusculo(tabela, schema="public"):
-    """
-    Lista as colunas de uma tabela no PostgreSQL e renomeia todas para minúsculas.
-    
-    :param tabela: Nome da tabela
-    :param schema: Nome do schema, padrão é "public"
-    """
-    # Configuração do banco de dados
-
-    try:
-        with engine.connect() as connection:
-            print(f"Conexão com o banco de dados bem-sucedida.")
-            print(f"Listando as colunas da tabela '{schema}.{tabela}'...")
-
-            # Query para listar as colunas da tabela
-            query_listar_colunas = text(f"""
-                SELECT column_name 
-                FROM information_schema.columns 
-                WHERE table_name = :tabela AND table_schema = :schema
-            """)
-
-            # Executa a consulta
-            result = connection.execute(query_listar_colunas, {"tabela": tabela, "schema": schema})
-            colunas = [row[0] for row in result]  # Ajuste: acesso por índice ao invés de chave
-            print(f"Colunas encontradas: {colunas}")
-
-            # Gerar comandos para renomear as colunas para minúsculas
-            alter_statements = []
-            for coluna in colunas:
-                if coluna != coluna.lower():  # Só renomeia se não for minúscula
-                    alter_statements.append(
-                        f'ALTER TABLE "{schema}"."{tabela}" RENAME COLUMN "{coluna}" TO "{coluna.lower()}";'
-                    )
-                    print(f"Coluna marcada para renomeação: {coluna} -> {coluna.lower()}")
-
-            if not alter_statements:
-                print("Nenhuma coluna necessita de renomeação.")
-            else:
-                # Executar os comandos de alteração
-                print("Iniciando a renomeação das colunas...")
-                for alter_query in alter_statements:
-                    resultado = connection.execute(text(alter_query))
-                    print({alter_query})
-  
-
-            print("Renomeação concluída com sucesso.")
-
-    except SQLAlchemyError as e:
-        print(f"Erro ao renomear colunas: {str(e)}")
-    except Exception as ex:
-        print(f"Erro inesperado: {str(ex)}")
-    finally:
-        print("Finalizando conexão com o banco de dados.")
-        engine.dispose()
-        print("Conexão encerrada.")
-
-
-# Função para gerar e executar queries para alterar os tipos de coluna
-
-
-def alterar_tipos_colunas_com_using(tipo_coluna_map):
-    """
-    Altera os tipos das colunas com base no mapeamento fornecido e salva os resultados no log.
-    Inclui a cláusula USING para conversão de tipos e executa queries independentemente.
-    
-    :param tipo_coluna_map: Dicionário no formato {tabela: {coluna: novo_tipo}}
-    """
-    with engine.connect() as connection:
-        for table, columns in tipo_coluna_map.items():
-            for column, new_type in columns.items():
-                # Adicionar a cláusula USING para a conversão
-                query = f"""
-                ALTER TABLE {table}
-                ALTER COLUMN {column} TYPE {new_type} USING {column}::{new_type};
-                """
-                print(f"Executando query: {query}")
-                try:
-                    result = connection.execute(text(query))
-                    success_message = f"Alteração bem-sucedida na tabela '{table}', coluna '{column}' para tipo '{new_type}'."
-                    print(success_message)
-                    log_result(query, success_message)
-                except SQLAlchemyError as e:
-                    error_msg = e.orig.args[0] if hasattr(e, 'orig') else str(e)
-                    error_message = (
-                        f"Erro ao alterar tipo da coluna '{column}' na tabela '{table}':\n"
-                        f"Mensagem de erro: {error_msg}\n"
-                        f"Dica: Pode ser necessário ajustar a query com 'USING {column}::{new_type}'."
-                    )
-                    print(error_message)
-                    log_result(query, error_message)
-                except Exception as e:
-                    unexpected_error_message = (
-                        f"Erro inesperado ao alterar tipo da coluna '{column}' na tabela '{table}': {e}"
-                    )
-                    print(unexpected_error_message)
-                    log_result(query, unexpected_error_message)
 
 if __name__ == "__main__":
     #listar_e_renomear_colunas_para_minusculo('sih_aih_rejeitada')

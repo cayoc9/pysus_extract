@@ -4,27 +4,8 @@ import json
 import numpy as np
 import re
 from datetime import datetime
-
-def normalizar_nome(nome):
-    """
-    Normaliza o nome:
-    - Converte para minúsculas.
-    - Remove acentos e caracteres especiais.
-    - Remove caracteres não alfanuméricos, exceto o sublinhado '_'.
-    """
-    # Converter para minúsculas
-    nome = nome.lower()
-    
-    # Remover acentos e diacríticos
-    nome = unicodedata.normalize('NFKD', nome).encode('ASCII', 'ignore').decode('ASCII')
-    
-    # Substituir caracteres não alfanuméricos por sublinhado
-    nome = re.sub(r'\W+', '_', nome)
-    
-    # Remover sublinhados iniciais ou finais
-    nome = nome.strip('_')
-    
-    return nome
+from utils.data_utils import normalizar_nome, converter_tipos_para_json
+from utils.log_utils import configurar_logging
 
 def analisar_dataframe(df):
     """
@@ -135,24 +116,6 @@ def carregar_e_concatenar_parquet(caminho_pasta):
     else:
         print("Nenhum arquivo Parquet encontrado no caminho fornecido.")
         return pd.DataFrame()  # Retorna um DataFrame vazio
-
-def converter_tipos_para_json(dados):
-    """
-    Converte tipos incompatíveis do NumPy para tipos nativos do Python,
-    garantindo que o objeto seja serializável em JSON.
-    """
-    if isinstance(dados, dict):
-        return {chave: converter_tipos_para_json(valor) for chave, valor in dados.items()}
-    elif isinstance(dados, list):
-        return [converter_tipos_para_json(item) for item in dados]
-    elif isinstance(dados, np.integer):
-        return int(dados)
-    elif isinstance(dados, np.floating):
-        return float(dados)
-    elif isinstance(dados, np.ndarray):
-        return dados.tolist()
-    else:
-        return dados
 
 def salvar_analise_em_arquivo(analise, caminho_saida):
     """

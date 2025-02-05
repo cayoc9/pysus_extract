@@ -7,6 +7,12 @@ import psutil
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import SQLAlchemyError
 from dotenv import load_dotenv
+from utils import (
+    normalizar_nome,
+    carregar_parquet,
+    configurar_logging,
+    get_db_engine
+)
 
 # Configuração do ambiente
 load_dotenv()
@@ -15,17 +21,7 @@ load_dotenv()
 LOG_DIR = "logs"
 os.makedirs(LOG_DIR, exist_ok=True)
 
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
-formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-
-file_handler = logging.FileHandler(os.path.join(LOG_DIR, f"upload_sia_{os.getpid()}.log"))
-file_handler.setFormatter(formatter)
-logger.addHandler(file_handler)
-
-console_handler = logging.StreamHandler()
-console_handler.setFormatter(formatter)
-logger.addHandler(console_handler)
+logger = configurar_logging('upload_sia')
 
 # Configuração do banco de dados
 DATABASE_URL = f"postgresql+psycopg2://{os.getenv('DB_USER')}:{os.getenv('DB_PASSWORD')}@" \
@@ -1855,6 +1851,12 @@ def processar_dados():
         logger.info("Processo concluído.")
     except Exception as e:
         logger.critical(f"Erro crítico no processamento: {e}", exc_info=True)
+
+def processar():
+    engine = get_db_engine()
+    df = carregar_parquet('dados/parquet')
+    df.columns = [normalizar_nome(c) for c in df.columns]
+    # Restante do código...
 
 if __name__ == "__main__":
     processar_dados()

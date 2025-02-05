@@ -4,31 +4,11 @@ import pandas as pd
 from sqlalchemy import inspect, text  # Importar 'text' do SQLAlchemy
 from sqlalchemy.types import VARCHAR, INTEGER, FLOAT, DATE, DateTime
 import logging
-
-def get_last_date(engine, table_name):
-    """
-    Obtém a data mais recente dos dados na tabela especificada.
-    """
-    with engine.connect() as connection:
-        inspector = inspect(engine)
-        if not inspector.has_table(table_name):
-            logging.info(f"Tabela '{table_name}' não existe no banco de dados.")
-            return None
-        else:
-            query = text(f"SELECT MAX(data_atendimento) FROM {table_name}")
-            result = connection.execute(query).fetchone()
-            return result[0]
-
-def update_database(engine, data, table_name):
-    """
-    Atualiza o banco de dados com o DataFrame fornecido.
-    """
-    try:
-        # Insere os dados no banco
-        data.to_sql(table_name, engine, if_exists='append', index=False)
-        logging.info(f"Dados inseridos na tabela '{table_name}' com sucesso.")
-    except Exception as e:
-        logging.error(f"Erro ao atualizar o banco de dados: {e}")
+from utils.db_utils import (
+    get_db_engine,
+    tabela_existe,
+    get_sqlalchemy_type
+)
 
 def adjust_table_schema(engine, data, table_name):
     """
