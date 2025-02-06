@@ -24,14 +24,14 @@ API para extração, processamento e armazenamento de dados do Sistema de Inform
 4. **Configure as variáveis de ambiente:**
     Crie um arquivo `.env` na raiz do projeto:
     ```env
-    DB_USER=seu_usuario
-    DB_PASSWORD=sua_senha
-    DB_HOST=localhost
+    DB_NAME=pysus
+    DB_USER=webadmin
+    DB_PASS=sua_senha_segura
+    DB_HOST=10.100.65.80
     DB_PORT=5432
-    DB_NAME=seu_banco
     ```
 
-## **Estrutura de Diretórios**
+## **Estrutura do Projeto**
 ```
 .
 ├── parquet_files/     # Arquivos Parquet (SIH/SIA)
