@@ -10,6 +10,8 @@ from urllib.parse import quote_plus
 from fastapi import FastAPI, HTTPException, BackgroundTasks, Request, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, field_validator
+from pydantic import ConfigDict
+from pydantic_settings import BaseSettings
 from datetime import datetime
 import logging.handlers
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -33,6 +35,7 @@ import psycopg2
 import tempfile
 import shutil
 from sqlalchemy.pool import NullPool
+from pydantic import ValidationError
 
 # -----------------------------------------------------------------------------
 # Configurações iniciais e carregamento do ambiente
@@ -50,23 +53,6 @@ logging.basicConfig(
         logging.FileHandler(os.path.join(LOG_DIR, "app.log")),
         logging.StreamHandler()
     ]
-)
-
-# -----------------------------------------------------------------------------
-# Variáveis de ambiente para o PostgreSQL
-# -----------------------------------------------------------------------------
-DB_USER = os.getenv('DB_USER')
-DB_PASSWORD = os.getenv('DB_PASSWORD')
-DB_HOST = os.getenv('DB_HOST')
-DB_PORT = os.getenv('DB_PORT')
-DB_NAME = os.getenv('DB_NAME')
-DB_PASSWORD_ENCODED = quote_plus(DB_PASSWORD)
-
-# Cria engine sem pool persistente
-engine = create_engine(
-    f'postgresql+psycopg2://{DB_USER}:{DB_PASSWORD_ENCODED}@{DB_HOST}:{DB_PORT}/{DB_NAME}',
-    poolclass=NullPool,
-    connect_args={'options': '-c statement_timeout=15000'}  # 15s timeout
 )
 
 # -----------------------------------------------------------------------------
@@ -355,7 +341,7 @@ GRUPOS_INFO = {
             "sequencia": "NUMERIC(6,0)",  # Numérico 6 dígitos conforme schema
             "remessa": "TEXT",            # Texto 10 caracteres (mantido TEXT pois é adequado para strings)
             "cnes": "NUMERIC(7,0)",       # Numérico 7 dígitos (CNES)
-            "n_aih": "NUMERIC(13,0)",     # Numérico 13 dígitos (N_AIH)
+            "aih": "NUMERIC(13,0)",     # Numérico 13 dígitos (N_AIH)
             "ano": "NUMERIC(4,0)",        # Numérico 4 dígitos (ano)
             "mes": "NUMERIC(2,0)",        # Numérico 2 dígitos (01-12)
             "dt_inter": "DATE",           # Data no formato DATE (AAAAMMDD)
@@ -707,54 +693,126 @@ def split_csv(file_path: str, lines_per_chunk: int, output_dir: str) -> List[str
 # -----------------------------------------------------------------------------
 # Função de salvamento otimizado utilizando COPY e chunks
 # -----------------------------------------------------------------------------
-def save_results(df: pd.DataFrame, table_name: str, params: QueryParams) -> None:
-    """Processo completo de salvamento com validação"""
+def save_results(source_table: str, target_table: str, params: QueryParams) -> None:
+    """Processo de salvamento otimizado com validação em 5 etapas"""
     try:
-        # 1. Exportar schema do DuckDB
-        schema_sql = export_schema(df, table_name)
+        # =====================================================================
+        # Etapa 1: Preparação e logging
+        # =====================================================================
+        logging.info("=== INÍCIO DO SALVAMENTO ===")
+        logging.info(f"Parâmetros: {params.model_dump()}")
+        logging.info(f"Origem: {source_table} → Destino: {target_table}")
+
+        # =====================================================================
+        # Etapa 2: Obtenção do schema com verificação de tipos
+        # =====================================================================
+        logging.info("Obtendo schema da tabela origem...")
+        schema_query = f"""
+            SELECT 
+                column_name AS name,
+                data_type AS type,
+                CASE 
+                    WHEN data_type LIKE 'VARCHAR%' THEN 'TEXT'
+                    WHEN data_type LIKE 'DECIMAL%' THEN 'NUMERIC'
+                    ELSE UPPER(data_type)
+                END AS pg_type
+            FROM information_schema.columns 
+            WHERE table_name = '{source_table.lower()}'
+        """
+        schema = duckdb.execute(schema_query).fetchall()
+        logging.info(f"Schema detectado ({len(schema)} colunas):\n{pd.DataFrame(schema)}")
+
+        # =====================================================================
+        # Etapa 3: Criação da tabela com transação atômica
+        # =====================================================================
+        logging.info("Criando tabela no PostgreSQL...")
+        columns = []
+        for col in schema:
+            pg_type = GRUPOS_INFO.get(params.grupo, {}).get('colunas', {}).get(col[0].lower(), col[2])
+            columns.append(f'"{col[0]}" {pg_type}')
         
-        # 2. Criar tabela no PostgreSQL
+        create_table_sql = f"CREATE TABLE IF NOT EXISTS {target_table} ({', '.join(columns)})"
+        
         with engine.connect() as conn:
-            conn.execute(text(schema_sql))
-            logging.info(f"Tabela {table_name} criada com sucesso")
+            # Transação explícita com commit garantido
+            with conn.begin():
+                logging.info(f"Executando DDL:\n{create_table_sql}")
+                conn.execute(text(f"DROP TABLE IF EXISTS {target_table} CASCADE"))
+                conn.execute(text(create_table_sql))
+            
+            # Verificação pós-criação
+            exists = conn.execute(text(f"""
+                SELECT EXISTS (
+                    SELECT 1 FROM information_schema.tables 
+                    WHERE table_name = '{target_table.lower()}'
+                )
+            """)).scalar()
+            
+            if not exists:
+                raise RuntimeError(f"Falha na criação da tabela {target_table}")
+            
+            logging.info("Tabela criada com sucesso - Verificação OK")
+
+        # =====================================================================
+        # Etapa 4: Transferência de dados com conexão persistente
+        # =====================================================================
+        logging.info("Iniciando transferência via COPY...")
+        connection_params = {
+            "dbname": settings.db_name,
+            "user": settings.db_user,
+            "password": settings.db_pass,
+            "host": settings.db_host,
+            "port": settings.db_port,
+            "connect_timeout": 10
+        }
         
-        # 3. Gerar CSV formatado
-        temp_dir = tempfile.mkdtemp()
-        temp_csv = os.path.join(temp_dir, 'data.csv')
-        
-        df.to_csv(
-            temp_csv,
-            index=False,
-            header=True,
-            na_rep='\\N',
-            quoting=csv.QUOTE_MINIMAL,
-            escapechar='\\',
-            date_format='%Y-%m-%d',
-            encoding='utf-8'
-        )
-        
-        # 4. Validar amostra
-        if not validate_csv_sample(temp_csv, table_name):
-            raise ValueError("Falha na validação do CSV")
-        
-        # 5. Fazer upload completo
+        try:
+            # Conexão explícita com tratamento de erro
+            duckdb.execute("INSTALL postgres; LOAD postgres;")
+            attach_cmd = f"ATTACH '{' '.join(f'{k}={v}' for k,v in connection_params.items())}' AS pg_db (TYPE POSTGRES)"
+            duckdb.execute(attach_cmd)
+            
+            # Operação de COPY com batch size
+            copy_query = f"""
+                INSERT INTO pg_db.{target_table} 
+                SELECT * FROM {source_table}
+            """
+            
+            result = duckdb.execute(copy_query)
+            logging.info(f"Dados transferidos - {result.fetchall()[0][0]} registros")
+            
+        except Exception as copy_error:
+            logging.error("Falha na transferência de dados:")
+            logging.error(f"Tipo: {type(copy_error).__name__}")
+            logging.error(f"Mensagem: {str(copy_error)}")
+            raise
+
+        # =====================================================================
+        # Etapa 5: Validação pós-transferência
+        # =====================================================================
         with engine.connect() as conn:
-            with conn.connection.cursor() as cursor:
-                with open(temp_csv, 'r') as f:
-                    cursor.copy_expert(
-                        f"COPY {table_name} FROM STDIN WITH (FORMAT CSV, HEADER TRUE, NULL '\\N')",
-                        f
-                    )
-            conn.commit()
-        
-        logging.info(f"Dados carregados com sucesso na tabela {table_name}")
-        
+            pg_count = conn.execute(text(f"SELECT COUNT(*) FROM {target_table}")).scalar()
+            duckdb_count = duckdb.execute(f"SELECT COUNT(*) FROM {source_table}").fetchone()[0]
+            
+            if pg_count != duckdb_count:
+                raise ValueError(f"Divergência de registros: DuckDB={duckdb_count} vs PG={pg_count}")
+            
+            logging.info(f"Validação OK - Registros consistentes: {pg_count}")
+
     except Exception as e:
-        logging.error(f"Erro no processo de salvamento: {str(e)}")
-        raise
+        logging.error("Falha crítica no processo de salvamento", exc_info=True)
+        raise RuntimeError(f"Erro durante o salvamento: {str(e)}") from e
+
     finally:
-        if os.path.exists(temp_dir):
-            shutil.rmtree(temp_dir)
+        # =====================================================================
+        # Limpeza de recursos
+        # =====================================================================
+        logging.info("Executando limpeza final...")
+        try:
+            duckdb.execute("DETACH pg_db")
+            logging.info("Conexão PostgreSQL liberada")
+        except Exception as detach_error:
+            logging.warning(f"Erro ao desconectar: {str(detach_error)}")
 
 # -----------------------------------------------------------------------------
 # Endpoints FastAPI
@@ -815,13 +873,12 @@ async def async_query(params: QueryParams, background_tasks: BackgroundTasks) ->
         def task_processor():
             try:
                 files = get_parquet_files(params.base, params.grupo, params.competencia_inicio, params.competencia_fim)
-                result_df = process_parquet_files(files, params)
+                temp_table = process_parquet_files(files, params)
                 table_name = params.table_name if params.table_name else GRUPOS_INFO[params.grupo]['tabela']
-                save_results(result_df, table_name, params)
+                save_results(temp_table, table_name, params)
                 async_jobs[job_id].update({
                     "status": "completed", 
                     "end_time": datetime.now().isoformat(),
-                    "result_size": len(result_df),
                     "table_name": table_name
                 })
             except Exception as e:
@@ -884,6 +941,14 @@ def verify_db_connection():
 # -----------------------------------------------------------------------------
 if __name__ == "__main__":
     import uvicorn
+    try:
+        settings = Settings()
+        print("Configurações carregadas com sucesso!")
+        print(settings.model_dump())
+    except ValidationError as e:
+        print("Erro nas configurações:")
+        print(e.json(indent=2))
+        exit(1)
     uvicorn.run(app, host="0.0.0.0", port=8000)
 
 # -----------------------------------------------------------------------------
@@ -895,16 +960,15 @@ def adaptive_processing(files: List[str], params: QueryParams) -> None:
     processed = 0
     logging.info(f"Iniciando processamento adaptativo de {total_files} arquivos")
     
-    chunk_results = []
-    
     for i in range(0, total_files, chunk_size):
         chunk = files[i:i+chunk_size]
         logging.info(f"Processando chunk {i//chunk_size + 1} com {len(chunk)} arquivos")
         
         try:
-            # Processa o chunk atual
-            processed_chunk = process_data(chunk, params, is_chunk=True)
-            chunk_results.append(processed_chunk)
+            # Processar e salvar
+            temp_table = process_data(chunk, params)
+            table_name = params.table_name if params.table_name else GRUPOS_INFO[params.grupo]['tabela']
+            save_results(temp_table, table_name, params)
             processed += len(chunk)
             
             # Calcula e loga o progresso
@@ -923,51 +987,38 @@ def adaptive_processing(files: List[str], params: QueryParams) -> None:
         except Exception as e:
             logging.error(f"Erro no chunk {i//chunk_size + 1}: {str(e)}")
             raise
-    
-    full_df = pd.concat(chunk_results)
-    return apply_filters(full_df, params)  # Filtro único no final
 
 # -----------------------------------------------------------------------------
 # Função para construção de query com tratamento de erros (ATUALIZADA)
 # -----------------------------------------------------------------------------
-def build_conversion_query(grupo: str) -> str:
-    """Constrói query de conversão com sintaxe corrigida para DuckDB"""
+def build_conversion_query(grupo: str, columns: list) -> str:
+    """Constrói query de conversão usando tipos do GRUPOS_INFO"""
+    if grupo not in GRUPOS_INFO:
+        raise ValueError(f"Grupo {grupo} não encontrado no GRUPOS_INFO")
+    
     schema = GRUPOS_INFO[grupo]['colunas']
     selects = []
     
-    for col, dtype in schema.items():
+    for col in columns:
+        col_lower = col.lower()  # Normaliza para minúsculas
+        dtype = schema.get(col_lower, 'TEXT')  # Usa TEXT como fallback
+        
+        # Expressão de conversão principal
+        conversion_expr = f"TRY_CAST({col} AS {dtype}) AS {col}"
+        
+        # Expressão de erro
+        error_conditions = []
         if 'NUMERIC' in dtype:
-            # Sintaxe corrigida usando TRY_CAST padrão
-            selects.append(
-                f"TRY_CAST({col} AS {dtype}) AS {col}, "
-                f"CASE WHEN {col} IS NOT NULL AND TRY_CAST({col} AS {dtype}) IS NULL "
-                f"THEN 'ERRO_NUMERICO' ELSE NULL END AS new_{col}_error"
-            )
+            error_conditions.append(f"{col}::STRING ~ '[^0-9]'")  # Caracteres não numéricos
         elif 'DATE' in dtype:
-            selects.append(
-                f"COALESCE("
-                f"TRY_CAST(strptime({col}, '%Y%m%d') AS DATE), "
-                f"TRY_CAST(strptime({col}, '%d/%m/%Y') AS DATE)"
-                f") AS {col}, "
-                f"CASE WHEN {col} IS NOT NULL THEN 'FORMATO_INVALIDO' ELSE NULL END AS new_{col}_error"
-            )
-        elif 'BOOLEAN' in dtype:
-            selects.append(
-                f"CASE WHEN UPPER({col}) IN ('1', 'T', 'TRUE', 'V') THEN TRUE "
-                f"WHEN UPPER({col}) IN ('0', 'F', 'FALSE') THEN FALSE "
-                f"ELSE NULL END AS {col}, "
-                f"CASE WHEN {col} IS NOT NULL AND "
-                f"UPPER({col}) NOT IN ('1', 'T', 'TRUE', 'V', '0', 'F', 'FALSE') "
-                f"THEN 'VALOR_BOOLEANO_INVALIDO' ELSE NULL END AS new_{col}_error"
-            )
-        else:
-            selects.append(
-                f"SUBSTR({col}, 1, 255) AS {col}, "
-                f"CASE WHEN LENGTH({col}) > 255 THEN 'TAMANHO_EXCEDIDO' "
-                f"WHEN {col} ~ '[^\\x00-\\x7F]' THEN 'CARACTERE_INVALIDO' "
-                f"ELSE NULL END AS new_{col}_error"
-            )
-    
+            error_conditions.append(f"strptime({col}, '%Y%m%d') IS NULL")  # Formato inválido
+        
+        error_condition = " OR ".join(error_conditions) if error_conditions else "FALSE"
+        error_expr = f"CASE WHEN {col} IS NOT NULL AND ({error_condition}) THEN 'ERRO_TIPO' ELSE NULL END AS new_{col}_error"
+        
+        selects.append(f"{conversion_expr}, {error_expr}")
+        logging.info(f"Conversão aplicada: {col} -> {dtype}")
+
     return ", ".join(selects)
 
 def get_cnes_column(grupo: str) -> str:
@@ -981,43 +1032,143 @@ def process_data(
     files: List[str], 
     params: QueryParams,
     is_chunk: bool = False
-) -> pd.DataFrame:
+) -> str:
     """
-    Processa arquivos Parquet com tratamento de erros unificado
-    Parâmetros:
-        files: Lista de arquivos ou chunk
-        params: Parâmetros de consulta
-        is_chunk: Indica se é processamento de chunk (default False)
+    Processa arquivos Parquet com as seguintes etapas:
+    1. Filtragem inicial por CNES e seleção de colunas
+    2. Limpeza básica dos dados
+    3. Conversão de tipos com registro de erros
+    4. Validação e ajustes finais
     """
     try:
-        conversion_query = build_conversion_query(params.grupo)
-        query = f"""
-            SELECT {conversion_query}
+        # =====================================================================
+        # Passo 1: Filtragem inicial
+        # =====================================================================
+        cnes_col = get_cnes_column(params.grupo)
+        campos = params.campos_agrupamento.copy()
+        
+        if cnes_col not in campos:
+            campos.append(cnes_col)
+            logging.info(f"Adicionada coluna CNES: {cnes_col}")
+
+        # Construir cláusula WHERE
+        where_clause = ""
+        if params.cnes_list != ["*"]:
+            cnes_list = ", ".join([f"'{c}'" for c in params.cnes_list])
+            where_clause = f"WHERE {cnes_col} IN ({cnes_list})"
+            logging.info(f"Filtro CNES aplicado: {len(params.cnes_list)} valores")
+
+        # Criar tabela filtrada
+        duckdb.execute(f"""
+            CREATE OR REPLACE TABLE temp_filtered AS
+            SELECT {', '.join(campos)}
             FROM read_parquet({files})
+            {where_clause}
+        """)
+        
+        # Log de amostra após filtragem
+        sample = duckdb.execute("SELECT * FROM temp_filtered LIMIT 5").fetchdf()
+        logging.info("Amostra pós-filtro (temp_filtered):\n%s", sample)
+        logging.info("Tipos originais:\n%s", sample.dtypes)
+
+        # =====================================================================
+        # Passo 2: Limpeza dos dados
+        # =====================================================================
+        clean_operations = []
+        columns = duckdb.execute("DESCRIBE temp_filtered").fetchall()
+        
+        for col in columns:
+            col_name, col_type = col[0], col[1]
+            if 'VARCHAR' in col_type:
+                clean_operations.append(f"TRIM({col_name}) AS {col_name}")
+                logging.info(f"Limpeza aplicada em {col_name}: TRIM")
+            else:
+                clean_operations.append(col_name)
+
+        duckdb.execute(f"""
+            CREATE OR REPLACE TABLE temp_cleaned AS
+            SELECT {', '.join(clean_operations)}
+            FROM temp_filtered
+        """)
+        
+        # Identificar colunas textuais para validação
+        text_columns = [
+            col[0] for col in duckdb.execute("DESCRIBE temp_cleaned").fetchall()
+            if 'VARCHAR' in col[1]
+        ]
+
+        # Gerar condições dinamicamente
+        validation_conditions = []
+        for col in text_columns:
+            validation_conditions.append(f"LENGTH({col}) > 0")
+
+        condition = " OR ".join(validation_conditions) if validation_conditions else "1=0"
+
+        # Query de validação atualizada
+        validation_query = f"""
+            SELECT 
+                COUNT(*) AS total_linhas,
+                SUM(CASE WHEN ({condition}) THEN 1 ELSE 0 END) AS textos_validos
+            FROM temp_cleaned
         """
+
+        sample_clean = duckdb.execute(validation_query).fetchdf()
+        logging.info("Estatísticas de limpeza:\n%s", sample_clean)
+
+        # =====================================================================
+        # Passo 3: Conversão de tipos
+        # =====================================================================
+        conversion_query = build_conversion_query(params.grupo, campos)
         
-        # Execução comum a ambos os casos
-        df = duckdb.query(query).to_df()
+        logging.info("Iniciando conversão de tipos com query:")
+        logging.info(conversion_query[:500] + "...")  # Log parcial da query
+
+        duckdb.execute(f"""
+            CREATE OR REPLACE TABLE temp_converted AS
+            SELECT {conversion_query}
+            FROM temp_cleaned
+        """)
+
+        # =====================================================================
+        # Passo 4: Validação e ajustes
+        # =====================================================================
+        # Verificar colunas de erro
+        describe_df = duckdb.execute("DESCRIBE temp_converted").fetchdf()
+        logging.info(f"Colunas disponíveis no DESCRIBE: {describe_df.columns.tolist()}")
+
+        error_cols = [col for col in describe_df['column_name'] 
+                      if col.startswith('new_')]
         
-        # Aplica filtros apenas no processamento completo
-        return apply_filters(df, params) if not is_chunk else df
+        for col in error_cols:
+            error_count = duckdb.execute(f"""
+                SELECT COUNT(*) 
+                FROM temp_converted 
+                WHERE {col} IS NOT NULL
+            """).fetchone()[0]
+            
+            if error_count > 0:
+                logging.warning(f"Erros detectados em {col}: {error_count} registros")
+            else:
+                logging.info(f"Coluna {col} sem erros - será removida")
+                duckdb.execute(f"""
+                    ALTER TABLE temp_converted DROP COLUMN {col};
+                """)
+
+        # Log final
+        final_sample = duckdb.execute("""
+            SELECT 
+                column_name AS coluna,
+                data_type AS tipo
+            FROM information_schema.columns 
+            WHERE table_name = 'temp_converted'
+        """).fetchdf()
+        
+        logging.info("Estrutura final da tabela convertida:\n%s", final_sample)
+
+        return "temp_converted"
 
     except Exception as e:
-        error_msg = str(e)
-        logging.error(f"Falha no processamento: {error_msg}")
-        
-        # Tratamento unificado de erros
-        col_error = None
-        if "Erro na coluna" in error_msg:
-            col_error = error_msg.split(":")[0].replace("Erro na coluna ", "")
-        elif "Conversion Error" in error_msg:
-            col_match = re.search(r'column "(.*?)"', error_msg)
-            col_error = col_match.group(1) if col_match else None
-        
-        if col_error:
-            logging.error(f"COLUNA PROBLEMÁTICA: {col_error}")
-            raise ValueError(f"Erro na coluna {col_error}") from e
-            
+        logging.error("Falha no processamento de dados", exc_info=True)
         raise
 
 def process_parquet_files(files: List[str], params: QueryParams) -> pd.DataFrame:
@@ -1079,3 +1230,25 @@ def validate_csv_sample(csv_path: str, table_name: str) -> bool:
     except Exception as e:
         logging.error(f"Falha na validação: {str(e)}")
         return False
+
+class Settings(BaseSettings):
+    db_name: str = Field(..., env="DB_NAME")
+    db_user: str = Field(..., env="DB_USER")
+    db_pass: str = Field(..., env="DB_PASS")
+    db_host: str = Field(..., env="DB_HOST")
+    db_port: int = Field(..., env="DB_PORT")
+    
+    model_config = ConfigDict(
+        env_file=".env",
+        extra="ignore"
+    )
+
+settings = Settings()
+
+# Atualizar a conexão do SQLAlchemy
+engine = create_engine(
+    f"postgresql+psycopg2://{settings.db_user}:{quote_plus(settings.db_pass)}"
+    f"@{settings.db_host}:{settings.db_port}/{settings.db_name}",
+    poolclass=NullPool,
+    connect_args={'options': '-c statement_timeout=15000'}
+)
