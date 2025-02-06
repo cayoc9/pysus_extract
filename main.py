@@ -819,7 +819,7 @@ async def async_query(params: QueryParams, background_tasks: BackgroundTasks) ->
                 table_name = params.table_name if params.table_name else GRUPOS_INFO[params.grupo]['tabela']
                 save_results(result_df, table_name, params)
                 async_jobs[job_id].update({
-                    "status": "completed",
+                    "status": "completed", 
                     "end_time": datetime.now().isoformat(),
                     "result_size": len(result_df),
                     "table_name": table_name
@@ -895,13 +895,16 @@ def adaptive_processing(files: List[str], params: QueryParams) -> None:
     processed = 0
     logging.info(f"Iniciando processamento adaptativo de {total_files} arquivos")
     
+    chunk_results = []
+    
     for i in range(0, total_files, chunk_size):
         chunk = files[i:i+chunk_size]
         logging.info(f"Processando chunk {i//chunk_size + 1} com {len(chunk)} arquivos")
         
         try:
             # Processa o chunk atual
-            process_chunk_with_duckdb(chunk, params)
+            processed_chunk = process_data(chunk, params, is_chunk=True)
+            chunk_results.append(processed_chunk)
             processed += len(chunk)
             
             # Calcula e loga o progresso
@@ -920,6 +923,9 @@ def adaptive_processing(files: List[str], params: QueryParams) -> None:
         except Exception as e:
             logging.error(f"Erro no chunk {i//chunk_size + 1}: {str(e)}")
             raise
+    
+    full_df = pd.concat(chunk_results)
+    return apply_filters(full_df, params)  # Filtro único no final
 
 # -----------------------------------------------------------------------------
 # Função para construção de query com tratamento de erros (ATUALIZADA)
@@ -971,57 +977,52 @@ def get_cnes_column(grupo: str) -> str:
         raise ValueError(f"Grupo {grupo} não possui mapeamento de CNES")
     return CAMPOS_CNES[grupo]
 
-def process_parquet_files(files: List[str], params: QueryParams) -> pd.DataFrame:
-    """Processa arquivos Parquet com tratamento de erros detalhado"""
+def process_data(
+    files: List[str], 
+    params: QueryParams,
+    is_chunk: bool = False
+) -> pd.DataFrame:
+    """
+    Processa arquivos Parquet com tratamento de erros unificado
+    Parâmetros:
+        files: Lista de arquivos ou chunk
+        params: Parâmetros de consulta
+        is_chunk: Indica se é processamento de chunk (default False)
+    """
     try:
-        # Constrói query de conversão
         conversion_query = build_conversion_query(params.grupo)
-        
-        # Executa query no DuckDB
         query = f"""
             SELECT {conversion_query}
             FROM read_parquet({files})
         """
         
-        # Executa e converte para DataFrame
+        # Execução comum a ambos os casos
         df = duckdb.query(query).to_df()
         
-        # Aplica filtros de CNES
-        return apply_filters(df, params)
-        
+        # Aplica filtros apenas no processamento completo
+        return apply_filters(df, params) if not is_chunk else df
+
     except Exception as e:
-        logging.error(f"Falha no processamento: {str(e)}")
-        # Extrair nome da coluna do erro
-        if "Erro na coluna" in str(e):
-            col_error = str(e).split(":")[0].replace("Erro na coluna ", "")
+        error_msg = str(e)
+        logging.error(f"Falha no processamento: {error_msg}")
+        
+        # Tratamento unificado de erros
+        col_error = None
+        if "Erro na coluna" in error_msg:
+            col_error = error_msg.split(":")[0].replace("Erro na coluna ", "")
+        elif "Conversion Error" in error_msg:
+            col_match = re.search(r'column "(.*?)"', error_msg)
+            col_error = col_match.group(1) if col_match else None
+        
+        if col_error:
             logging.error(f"COLUNA PROBLEMÁTICA: {col_error}")
+            raise ValueError(f"Erro na coluna {col_error}") from e
+            
         raise
 
-def process_chunk_with_duckdb(chunk_files: List[str], params: QueryParams) -> pd.DataFrame:
-    """Processa chunk com log detalhado de erros"""
-    try:
-        # Constrói query de conversão para o grupo
-        conversion_query = build_conversion_query(params.grupo)
-        
-        # Executa query no DuckDB
-        query = f"""
-            SELECT {conversion_query}
-            FROM read_parquet({chunk_files})
-        """
-        
-        # Executa e retorna DataFrame processado
-        return duckdb.query(query).to_df()
-        
-    except Exception as e:
-        # Capturar detalhes do erro do DuckDB
-        error_msg = str(e)
-        if "Conversion Error" in error_msg:
-            col_match = re.search(r'column "(.*?)"', error_msg)
-            if col_match:
-                col_name = col_match.group(1)
-                logging.error(f"ERRO DE CONVERSÃO NA COLUNA: {col_name}")
-        logging.error(f"Detalhes do erro: {error_msg}")
-        raise
+def process_parquet_files(files: List[str], params: QueryParams) -> pd.DataFrame:
+    """Wrapper para processamento completo"""
+    return process_data(files, params, is_chunk=False)
 
 def export_schema(df: pd.DataFrame, table_name: str) -> str:
     """Exporta o schema do DataFrame para SQL PostgreSQL"""

@@ -1261,7 +1261,7 @@ if __name__ == "__main__":
         "has_special_chars": False,
         "has_mixed_types": False
     }
-},       
+    },       
         'sia_apac_acompanhamento_pos_cirurgia_bariatrica': {
     "AP_MVM": {
         "tipo_dado": "object",
@@ -2361,7 +2361,7 @@ if __name__ == "__main__":
         "has_special_chars": False,
         "has_mixed_types": False
     }
-},
+    },
         'sia_apac_confeccao_de_fistula': {
     "AP_MVM": {
         "tipo_dado": "object",
@@ -3328,7 +3328,7 @@ if __name__ == "__main__":
         "has_special_chars": False,
         "has_mixed_types": False
     }
-},     
+    },     
         'sia_apac_laudos_diversos': {
     "AP_MVM": {
         "tipo_dado": "object",
@@ -4211,7 +4211,7 @@ if __name__ == "__main__":
         "has_special_chars": False,
         "has_mixed_types": False
     }
-},
+    },
         'sia_apac_medicamentos': {
     "AP_MVM": {
         "tipo_dado": "object",
@@ -5142,7 +5142,7 @@ if __name__ == "__main__":
         "has_special_chars": False,
         "has_mixed_types": False
     }
-},
+    },
         'sia_apac_acompanhamento_multiprofissional': {
     "AP_MVM": {
         "tipo_dado": "object",
@@ -6210,7 +6210,7 @@ if __name__ == "__main__":
         "has_special_chars": False,
         "has_mixed_types": False
     }
-},
+    },
         'sia_apac_nefrologia':     {
         "AP_MVM": {
             "tipo_dado": "object",
@@ -8575,7 +8575,7 @@ if __name__ == "__main__":
         "has_special_chars": False,
         "has_mixed_types": False
     }
-},
+    },
         'sia_apac_radioterapia': {
     "AP_MVM": {
         "tipo_dado": "object",
