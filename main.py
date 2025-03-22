@@ -9,9 +9,7 @@ from sqlalchemy import create_engine, text
 from urllib.parse import quote_plus
 from fastapi import FastAPI, HTTPException, BackgroundTasks, Request, Query
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field, field_validator
-from pydantic import ConfigDict
-from pydantic_settings import BaseSettings
+from pydantic import ValidationError
 from datetime import datetime
 import logging.handlers
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -35,7 +33,12 @@ import psycopg2
 import tempfile
 import shutil
 from sqlalchemy.pool import NullPool
-from pydantic import ValidationError
+
+# Importações das definições
+from api.definitions import (
+    grupos_dict, CAMPOS_CNES, GRUPOS_INFO,
+    QueryParams, Settings
+)
 
 # -----------------------------------------------------------------------------
 # Configurações iniciais e carregamento do ambiente
@@ -54,462 +57,6 @@ logging.basicConfig(
         logging.StreamHandler()
     ]
 )
-
-# -----------------------------------------------------------------------------
-# Dicionários de configuração (ex.: mapeamento de grupos, schemas, etc.)
-# -----------------------------------------------------------------------------
-# (Aqui você insere os seus dicionários de grupos e mapeamento de colunas, conforme seu código.)
-grupos_dict = {
-    'AB': 'APAC_de_Cirurgia_Bariatrica',
-    'ABO': 'APAC_de_Acompanhamento_Pos_Cirurgia_Bariatrica',
-    'ACF': 'APAC_de_Confeccao_de_Fistula',
-    'AD': 'APAC_de_Laudos_Diversos',
-    'AM': 'APAC_de_Medicamentos',
-    'AMP': 'APAC_de_Acompanhamento_Multiprofissional',
-    'AN': 'APAC_de_Nefrologia',
-    'AQ': 'APAC_de_Quimioterapia',
-    'AR': 'APAC_de_Radioterapia',
-    'ATD': 'APAC_de_Tratamento_Dialitico',
-    'BI': 'Boletim_de_Producao_Ambulatorial_individualizado',
-    'IMPBO': 'IMPBO',
-    'PA': 'Producao_Ambulatorial',
-    'PAM': 'PAM',
-    'PAR': 'PAR',
-    'PAS': 'PAS',
-    'PS': 'RAAS_Psicossocial',
-    'SAD': 'RAAS_de_Atencao_Domiciliar',
-    'RD': 'AIH_Reduzida',
-    'RJ': 'AIH_Rejeitada',
-    'ER': 'AIH_Rejeitada_com_erro',
-    'SP': 'Servicos_Profissionais',
-    'CH': 'Cadastro_Hospitalar',
-    'CM': 'CM',
-    'DC': 'Dados_Complementares',
-    'EE': 'Estabelecimento_de_Ensino',
-    'EF': 'Estabelecimento_Filantropico',
-    'EP': 'Equipes',
-    'EQ': 'Equipamentos',
-    'GM': 'Gestao_Metas',
-    'HB': 'Habilitacao',
-    'IN': 'Incentivos',
-    'LT': 'Leitos',
-    'PF': 'Profissional',
-    'RC': 'Regra_Contratual',
-    'SR': 'Servico_Especializado',
-    'ST': 'Estabelecimentos'
-}
-
-CAMPOS_CNES = {
-    "SP": "SP_CNES",
-    "RD": "CNES",
-    "PA": "PA_CODUNI",
-    "AB": "AP_CNSPCN",
-    "ABO": "AP_CNSPCN",
-    "ACF": "AP_CNSPCN",
-    "AD": "AP_CNSPCN",
-    "AM": "AP_CNSPCN",
-    "AMP": "AP_CNSPCN",
-    "AN": "AP_CNSPCN",
-    "AQ": "AP_CNSPCN",
-    "AR": "AP_CNSPCN",
-    "ATD": "AP_CNSPCN",
-    "BI": "CNS_PAC",
-    "RJ": "CNES",
-    "ER": "CNES"
-}
-
-# Exemplo: GRUPOS_INFO – adicione aqui o seu dicionário completo de schemas
-GRUPOS_INFO = {
-    "RD": {
-        "tabela": "sih_aih_reduzida",
-        "colunas": {
-            "uf_zi": "TEXT",  # Alterado para TEXT (código de 2 caracteres)
-            "ano_cmpt": "INTEGER",  # Aumentado para INTEGER (4 dígitos)
-            "mes_cmpt": "SMALLINT",
-            "n_aih": "TEXT",  # Alterado para TEXT (13 caracteres)
-            "ident": "TEXT",  # Alterado para TEXT (código de 1 caractere)
-            "nasc": "DATE",
-            "sexo": "TEXT",
-            "uti_mes_in": "SMALLINT",
-            "uti_mes_an": "SMALLINT",
-            "uti_mes_al": "SMALLINT",
-            "uti_mes_to": "SMALLINT",
-            "marca_uti": "TEXT",
-            "uti_int_in": "SMALLINT",
-            "uti_int_an": "SMALLINT",
-            "uti_int_al": "SMALLINT",
-            "uti_int_to": "SMALLINT",
-            "diar_acom": "SMALLINT",
-            "qt_diarias": "SMALLINT",
-            "proc_solic": "TEXT",
-            "proc_rea": "TEXT",
-            "val_sh": "NUMERIC(15,2)",  # Aumentada precisão
-            "val_sp": "NUMERIC(15,2)",
-            "val_sadt": "NUMERIC(15,2)",
-            "val_rn": "NUMERIC(15,2)",
-            "val_acomp": "NUMERIC(15,2)",
-            "val_ortp": "NUMERIC(15,2)",
-            "val_sangue": "NUMERIC(15,2)",
-            "val_sadtsr": "NUMERIC(15,2)",
-            "val_transp": "NUMERIC(15,2)",
-            "val_obsang": "NUMERIC(15,2)",
-            "val_ped1ac": "NUMERIC(15,2)",
-            "val_tot": "NUMERIC(15,2)",  # Padronizado precisão
-            "val_uti": "NUMERIC(15,2)",
-            "us_tot": "NUMERIC(15,2)",  # Aumentada precisão
-            "dt_inter": "DATE",
-            "dt_saida": "DATE",
-            "diag_princ": "TEXT",
-            "diag_secun": "TEXT",
-            "ind_vdrl": "TEXT",  # Alterado para TEXT (indicador)
-            "cod_idade": "TEXT",  # Alterado para TEXT (código de 2 caracteres)
-            "idade": "SMALLINT",
-            "dias_perm": "SMALLINT",
-            "morte": "TEXT",  # Alterado para TEXT (indicador)
-            "car_int": "TEXT",
-            "tot_pt_sp": "NUMERIC(15,2)",  # Aumentada precisão
-            "cnes": "TEXT",  # Alterado para TEXT (código de 7 caracteres)
-            "cid_asso": "TEXT",
-            "cid_morte": "TEXT",
-            "complex": "TEXT",
-            "faec_tp": "TEXT",
-            "aud_just": "TEXT",
-            "val_uci": "NUMERIC(15,2)",
-            "diagsec1": "TEXT",
-            "espec": "TEXT",
-            "cgc_hosp": "TEXT",
-            "cep": "TEXT",
-            "munic_res": "INTEGER",
-            "cobranca": "TEXT",
-            "natureza": "TEXT",
-            "nat_jur": "TEXT",
-            "gestao": "SMALLINT",
-            "rubrica": "TEXT",
-            "munic_mov": "INTEGER",
-            "nacional": "TEXT",
-            "num_proc": "TEXT",
-            "cpf_aut": "TEXT",
-            "homonimo": "BOOLEAN",
-            "num_filhos": "SMALLINT",
-            "instru": "SMALLINT",
-            "cid_notif": "TEXT",
-            "contracep1": "TEXT",
-            "contracep2": "TEXT",
-            "gestrisco": "BOOLEAN",
-            "insc_pn": "TEXT",
-            "seq_aih5": "SMALLINT",
-            "cbor": "TEXT",
-            "cnaer": "TEXT",
-            "vincprev": "SMALLINT",
-            "gestor_cod": "TEXT",
-            "gestor_tp": "SMALLINT",
-            "gestor_cpf": "TEXT",
-            "gestor_dt": "DATE",
-            "cnpj_mant": "TEXT",
-            "infehosp": "BOOLEAN",
-            "financ": "TEXT",
-            "regct": "TEXT",
-            "raca_cor": "TEXT",
-            "etnia": "TEXT",
-            "sequencia": "BIGINT",
-            "remessa": "TEXT",
-            "sis_just": "TEXT",
-            "val_sh_fed": "NUMERIC(12,2)",
-            "val_sp_fed": "NUMERIC(12,2)",
-            "val_sh_ges": "NUMERIC(12,2)",
-            "val_sp_ges": "NUMERIC(12,2)",
-            "marca_uci": "TEXT",
-            "diagsec2": "TEXT",
-            "diagsec3": "TEXT",
-            "diagsec4": "TEXT",
-            "diagsec5": "TEXT",
-            "diagsec6": "TEXT",
-            "diagsec7": "TEXT",
-            "diagsec8": "TEXT",
-            "diagsec9": "TEXT",
-            "tpdisec1": "SMALLINT",
-            "tpdisec2": "SMALLINT",
-            "tpdisec3": "SMALLINT",
-            "tpdisec4": "SMALLINT",
-            "tpdisec5": "SMALLINT",
-            "tpdisec6": "SMALLINT",
-            "tpdisec7": "SMALLINT",
-            "tpdisec8": "SMALLINT",
-            "tpdisec9": "SMALLINT"
-        }
-    },
-    "RJ": {
-        "tabela": "sih_aih_rejeitada",
-        "colunas": {
-            "cnes": "NUMERIC(7,0)",  # Numérico 7 dígitos (CNES)
-            "uf_zi": "SMALLINT",  # Numérico 2 dígitos (Código UF)
-            "ano_cmpt": "SMALLINT",  # Numérico 4 dígitos (ano)
-            "mes_cmpt": "SMALLINT",  # Numérico 2 dígitos (01-12)
-            "espec": "SMALLINT",  # Numérico 2 dígitos (especialidade)
-            "cgc_hosp": "NUMERIC(14,0)",  # Numérico 14 dígitos (CNPJ)
-            "n_aih": "NUMERIC(13,0)",  # Numérico 13 dígitos
-            "ident": "SMALLINT",  # Numérico 1 dígito (tipo AIH)
-            "cep": "NUMERIC(8,0)",  # Numérico 8 dígitos
-            "munic_res": "INTEGER",  # Numérico 6 dígitos (código IBGE)
-            "nasc": "DATE",  # Data AAAAMMDD
-            "sexo": "SMALLINT",  # Numérico 1 dígito
-            "uti_mes_in": "SMALLINT",  # Numérico 2 dígitos
-            "uti_mes_an": "SMALLINT",  # Numérico 2 dígitos
-            "uti_mes_al": "SMALLINT",  # Numérico 2 dígitos
-            "uti_mes_to": "SMALLINT",  # Numérico 2 dígitos
-            "marca_uti": "SMALLINT",  # Numérico 1 dígito
-            "uti_int_in": "SMALLINT",  # Numérico 2 dígitos
-            "uti_int_an": "SMALLINT",  # Numérico 2 dígitos
-            "uti_int_al": "SMALLINT",  # Numérico 2 dígitos
-            "uti_int_to": "SMALLINT",  # Numérico 2 dígitos
-            "diar_acom": "SMALLINT",  # Numérico 2 dígitos
-            "qt_diarias": "SMALLINT",  # Numérico 3 dígitos
-            "proc_solic": "NUMERIC(10,0)",  # Numérico 10 dígitos
-            "proc_rea": "NUMERIC(10,0)",  # Numérico 10 dígitos
-            "val_sh": "NUMERIC(10,2)",  # Numérico 10,2 decimais
-            "val_sp": "NUMERIC(10,2)",  # Numérico 10,2 decimais
-            "val_sadt": "NUMERIC(10,2)",  # Numérico 10,2 decimais
-            "val_rn": "NUMERIC(10,2)",  # Numérico 10,2 decimais
-            "val_acomp": "NUMERIC(10,2)",  # Numérico 10,2 decimais
-            "val_ortp": "NUMERIC(10,2)",  # Numérico 10,2 decimais
-            "val_sangue": "NUMERIC(10,2)",  # Numérico 10,2 decimais
-            "val_tot": "NUMERIC(10,2)",  # Numérico 10,2 decimais
-            "dt_inter": "DATE",  # Data AAAAMMDD
-            "dt_saida": "DATE",  # Data AAAAMMDD
-            "diag_princ": "TEXT",  # Texto 4 caracteres (CID-10)
-            "diag_secun": "TEXT",  # Texto 4 caracteres (CID-10)
-            "morte": "SMALLINT",  # Numérico 1 dígito
-            "gestao": "SMALLINT",  # Numérico 1 dígito
-            "cnpj_mant": "NUMERIC(14,0)",  # Numérico 14 dígitos
-            "cid_asso": "TEXT",  # Texto 4 caracteres
-            "cid_morte": "TEXT",  # Texto 4 caracteres
-            "complex": "SMALLINT",  # Numérico 2 dígitos
-            "financ": "NUMERIC(2,0)",  # Numérico 2 dígitos
-            "faec_tp": "SMALLINT",  # Numérico 2 dígitos
-            "regct": "NUMERIC(2,0)",  # Numérico 2 dígitos
-            "raca_cor": "SMALLINT",  # Numérico 1 dígito
-            "etnia": "SMALLINT",  # Numérico 2 dígitos
-            "st_situac": "SMALLINT",  # Numérico 1 dígito
-            "st_bloq": "SMALLINT",  # Numérico 1 dígito
-            "st_mot_blo": "SMALLINT",  # Numérico 2 dígitos
-            "sequencia": "NUMERIC(6,0)",  # Numérico 6 dígitos
-            "remessa": "TEXT",  # Texto 10 caracteres
-            # Campos mantidos conforme schema original
-            "cod_idade": "SMALLINT",
-            "num_filhos": "SMALLINT",
-            "dias_perm": "SMALLINT",
-            "gestor_dt": "DATE",
-            "gestor_tp": "SMALLINT",
-            "seq_aih5": "TEXT",
-            "gestrisco": "SMALLINT",
-            "tot_pt_sp": "SMALLINT",
-            "us_tot": "NUMERIC(12,2)",
-            "val_obsang": "NUMERIC(12,2)",
-            "val_ped1ac": "NUMERIC(12,2)",
-            "val_sadtsr": "NUMERIC(12,2)",
-            "val_transp": "NUMERIC(12,2)",
-            "val_uti": "NUMERIC(12,2)",
-            "vincprev": "SMALLINT",
-            "homonimo": "SMALLINT",
-            "idade": "INTEGER",
-            "ind_vdrl": "SMALLINT",
-            "infehosp": "TEXT",
-            "instru": "SMALLINT",
-            "munic_mov": "TEXT",
-            "id_log": "TEXT",
-            "car_int": "TEXT",
-            "cbor": "TEXT",
-            "cid_notif": "TEXT",
-            "cnaer": "TEXT",
-            "cobranca": "SMALLINT",
-            "contracep1": "TEXT",
-            "contracep2": "TEXT",
-            "cpf_aut": "TEXT",
-            "gestor_cod": "TEXT",
-            "gestor_cpf": "TEXT",
-            "insc_pn": "TEXT",
-            "nacional": "TEXT",
-            "natureza": "TEXT",
-            "nat_jur": "TEXT",
-            "num_proc": "TEXT",
-            "rubrica": "SMALLINT"
-        }
-    },
-    "ER": {
-        "tabela": "sih_aih_rejeitada_erro",
-        "colunas": {
-            "sequencia": "NUMERIC(6,0)",  # Numérico 6 dígitos conforme schema
-            "remessa": "TEXT",            # Texto 10 caracteres (mantido TEXT pois é adequado para strings)
-            "cnes": "NUMERIC(7,0)",       # Numérico 7 dígitos (CNES)
-            "aih": "NUMERIC(13,0)",     # Numérico 13 dígitos (N_AIH)
-            "ano": "NUMERIC(4,0)",        # Numérico 4 dígitos (ano)
-            "mes": "NUMERIC(2,0)",        # Numérico 2 dígitos (01-12)
-            "dt_inter": "DATE",           # Data no formato DATE (AAAAMMDD)
-            "dt_saida": "DATE",           # Data no formato DATE (AAAAMMDD)
-            "mun_mov": "NUMERIC(6,0)",    # Código IBGE 6 dígitos
-            "uf_zi": "NUMERIC(2,0)",      # Código UF 2 dígitos
-            "mun_res": "NUMERIC(6,0)",    # Código IBGE 6 dígitos
-            "uf_res": "NUMERIC(2,0)",     # Código UF 2 dígitos (corrigido de TEXT para numérico)
-            "co_erro": "NUMERIC(2,0)"     # Código de erro 2 dígitos (corrigido de TEXT para numérico)
-        }
-    },
-    "PA": {
-        "tabela": "sia_producao_ambulatorial",
-        "colunas": {
-            "id_log": "TEXT",
-            "idademax": "TEXT",
-            "idademin": "TEXT",
-            "nu_pa_tot": "TEXT",
-            "nu_vpa_tot": "NUMERIC(15,2)",
-            "pa_alta": "BOOLEAN",
-            "pa_autoriz": "TEXT",
-            "pa_catend": "TEXT",
-            "pa_cbocod": "TEXT",
-            "pa_cidcas": "TEXT",
-            "pa_cidpri": "TEXT",
-            "pa_cidsec": "TEXT",
-            "pa_cmp": "INTEGER",
-            "pa_cnpj_cc": "TEXT",
-            "pa_cnpjcpf": "TEXT",
-            "pa_cnpjmnt": "TEXT",
-            "pa_cnsmed": "TEXT",
-            "pa_codesp": "TEXT",
-            "pa_codoco": "TEXT",
-            "pa_codpro": "TEXT",
-            "pa_coduni": "TEXT",  # Mantido como TEXT pois é código de 7 caracteres
-            "pa_condic": "TEXT",
-            "pa_datpr": "INTEGER",
-            "pa_datref": "INTEGER",
-            "pa_dif_val": "TEXT",
-            "pa_docorig": "TEXT",
-            "pa_encerr": "BOOLEAN",
-            "pa_etnia": "TEXT",
-            "pa_fler": "BOOLEAN",
-            "pa_flidade": "SMALLINT",
-            "pa_flqt": "TEXT",
-            "pa_fxetar": "TEXT",
-            "pa_gestao": "TEXT",
-            "pa_idade": "TEXT",
-            "pa_incout": "TEXT",
-            "pa_incurg": "TEXT",
-            "pa_indica": "SMALLINT",
-            "pa_ine": "TEXT",
-            "pa_mn_ind": "TEXT",
-            "pa_mndif": "SMALLINT",
-            "pa_morfol": "TEXT",
-            "pa_motsai": "TEXT",
-            "pa_munat": "INTEGER",
-            "pa_munpcn": "INTEGER",
-            "pa_mvm": "DATE",
-            "pa_nat_jur": "TEXT",
-            "pa_nh": "TEXT",
-            "pa_nivcpl": "SMALLINT",
-            "pa_numapa": "TEXT",
-            "pa_obito": "BOOLEAN",
-            "pa_perman": "BOOLEAN",
-            "pa_proc_id": "TEXT",
-            "pa_qtdapr": "INTEGER",
-            "pa_qtdpro": "INTEGER",
-            "pa_racacor": "TEXT",
-            "pa_rcb": "TEXT",
-            "pa_rcbdf": "SMALLINT",
-            "pa_regct": "TEXT",
-            "pa_sexo": "TEXT",
-            "pa_srv_c": "TEXT",
-            "pa_subfin": "TEXT",
-            "pa_tipate": "TEXT",
-            "pa_tippre": "TEXT",
-            "pa_tippro": "TEXT",
-            "pa_tpfin": "TEXT",
-            "pa_tpups": "TEXT",
-            "pa_transf": "BOOLEAN",
-            "pa_ufdif": "SMALLINT",
-            "pa_ufmun": "TEXT",
-            "pa_valapr": "NUMERIC(15,2)",
-            "pa_valpro": "NUMERIC(15,2)",
-            "pa_vl_cf": "NUMERIC(15,2)",
-            "pa_vl_cl": "NUMERIC(15,2)",
-            "pa_vl_inc": "NUMERIC(15,2)",
-            "uf": "TEXT"
-        }
-    },
-    "SP": {
-        "tabela": "sih_servicos_profissionais",
-        "colunas": {
-            "sp_gestor": "NUMERIC(6,0)",
-            "sp_uf": "NUMERIC(2,0)",
-            "sp_aa": "NUMERIC(4,0)",
-            "sp_mm": "NUMERIC(2,0)",
-            "sp_cnes": "NUMERIC(7,0)",
-            "sp_naih": "NUMERIC(13,0)",
-            "sp_procrea": "NUMERIC(10,0)",
-            "sp_dtinter": "DATE",
-            "sp_dtsaida": "DATE",
-            "sp_num_pr": "TEXT",
-            "sp_tipo": "NUMERIC(2,0)",
-            "sp_cpfcgc": "NUMERIC(14,0)",
-            "sp_atoprof": "NUMERIC(10,0)",
-            "sp_tp_ato": "NUMERIC(2,0)",
-            "sp_qtd_ato": "NUMERIC(5,0)",
-            "sp_ptsp": "NUMERIC(2,0)",
-            "sp_nf": "NUMERIC(12,0)",
-            "sp_valato": "NUMERIC(10,2)",
-            "sp_m_hosp": "NUMERIC(10,2)",
-            "sp_m_pac": "NUMERIC(10,2)",
-            "sp_des_hos": "NUMERIC(10,2)",
-            "sp_des_pac": "NUMERIC(10,2)",
-            "sp_complex": "NUMERIC(2,0)",
-            "sp_financ": "NUMERIC(2,0)",
-            "sp_co_faec": "NUMERIC(10,0)",
-            "sp_pf_cbo": "NUMERIC(6,0)",
-            "sp_pf_doc": "NUMERIC(15,0)",
-            "sp_pj_doc": "NUMERIC(14,0)",
-            "in_tp_val": "NUMERIC(1,0)",
-            "sequencia": "NUMERIC(5,0)",
-            "remessa": "TEXT",
-            "serv_cla": "NUMERIC(4,0)",
-            "sp_cidpri": "TEXT",
-            "sp_cidsec": "TEXT",
-            "sp_qt_proc": "NUMERIC(5,0)",
-            "sp_u_aih": "NUMERIC(2,0)"
-        }
-    }
-}
-# -----------------------------------------------------------------------------
-# Modelo de Dados para Parâmetros da Consulta
-# -----------------------------------------------------------------------------
-class QueryParams(BaseModel):
-    base: str
-    grupo: str
-    cnes_list: List[str] = Field(..., min_length=1)
-    campos_agrupamento: List[str] = Field(..., min_length=1)
-    competencia_inicio: str
-    competencia_fim: str
-    table_name: Optional[str] = None
-    consulta_personalizada: Optional[str] = None
-    
-    @field_validator('base')
-    def validate_base(cls, v):
-        if v not in ['SIH', 'SIA']:
-            raise ValueError('Base deve ser SIH ou SIA')
-        return v.upper()
-
-    @field_validator('cnes_list')
-    def validate_cnes(cls, v):
-        if v == ["*"]:
-            return v
-        for cnes in v:
-            if len(cnes) != 7 or not cnes.isdigit():
-                raise ValueError('CNES deve conter exatamente 7 dígitos ou "*" para todos')
-        return v
-
-    @field_validator('competencia_inicio', 'competencia_fim')
-    def validate_competencia(cls, v):
-        try:
-            datetime.strptime(v, '%m/%Y')
-        except ValueError:
-            raise ValueError('Formato inválido. Use MM/YYYY')
-        return v
 
 # -----------------------------------------------------------------------------
 # Funções de Utilidade para Processamento e Conversão
@@ -593,13 +140,22 @@ def convert_datatypes(df: pd.DataFrame, grupo: str) -> pd.DataFrame:
     error_stats = defaultdict(int)
     df = df.apply(lambda col: col.astype(str).str.strip() if col.dtype == 'object' else col)
     
+    # Lista de colunas que contêm códigos com zeros à esquerda que devem ser preservados
+    colunas_codigo = [col for col in df.columns if 
+                      any(col.lower().startswith(prefix) for prefix in 
+                          ['proc_', 'pa_codpro', 'pa_coduni', 'sp_procrea', 'sp_cnes'])]
+    
     for col, dtype in schema.get('colunas', {}).items():
         if col not in df.columns:
             continue
         dtype = dtype.upper()
         original = df[col].copy()
+        
+        # Verifica se a coluna é uma que deve preservar zeros à esquerda
+        is_codigo_column = col in colunas_codigo
+        
         try:
-            if any(nt in dtype for nt in ['NUMERIC', 'INT']):
+            if any(nt in dtype for nt in ['NUMERIC', 'INT']) and not is_codigo_column:
                 df[col] = pd.to_numeric(df[col].replace({'': pd.NA, ' ': pd.NA}), errors='coerce')
                 error_mask = df[col].isna() & original.notna()
                 if error_mask.sum() > 0:
@@ -614,7 +170,10 @@ def convert_datatypes(df: pd.DataFrame, grupo: str) -> pd.DataFrame:
             elif 'BOOLEAN' in dtype:
                 df[col] = df[col].apply(lambda x: False if str(x).lower() in ['0', 'false', 'f'] else True)
             else:
+                # Para colunas de código ou texto, mantenha como string sem modificações adicionais
                 df[col] = df[col].astype('string')
+                if is_codigo_column:
+                    logging.info(f"Preservando zeros à esquerda para a coluna {col}")
         except Exception as e:
             logging.error(f"Erro na conversão da coluna {col}: {str(e)}")
             raise
@@ -890,7 +449,68 @@ async def async_query(params: QueryParams, background_tasks: BackgroundTasks) ->
         background_tasks.add_task(task_processor)
         return {"job_id": job_id, "status_url": f"/query/jobs/{job_id}"}
 
+@app.post("/analise_procedimento/async", tags=["Async Operations"])
+async def async_analysis(params: QueryParams, background_tasks: BackgroundTasks) -> Dict[str, str]:
+    async with Semaphore(1):
+        job_id = str(uuid4())
+        async_jobs[job_id] = {
+            "status": "processing",
+            "start_time": datetime.now().isoformat(),
+            "progress": 0
+        }
+        def task_processor():
+            try:
+                # Importando aqui para evitar importação circular
+                from analise_procedimentos import gerar_relatorio_procedimentos
+                
+                # Extração do ano a partir da competência
+                anos = []
+                try:
+                    inicio = datetime.strptime(params.competencia_inicio, '%m/%Y')
+                    fim = datetime.strptime(params.competencia_fim, '%m/%Y')
+                    # Adiciona todos os anos entre início e fim
+                    for ano in range(inicio.year, fim.year + 1):
+                        anos.append(ano)
+                except Exception as e:
+                    logging.error(f"Erro ao processar datas: {e}")
+                    anos = [datetime.now().year]  # Usa ano atual como fallback
+                
+                # Definir diretório de saída
+                output_dir = params.output_dir if hasattr(params, 'output_dir') and params.output_dir else "relatorios"
+                
+                # Atualizar progresso
+                async_jobs[job_id]["progress"] = 10
+                
+                # Gerar relatório
+                gerar_relatorio_procedimentos(
+                    base=params.base,
+                    grupo=params.grupo,
+                    cnes_list=params.cnes_list,
+                    competencia_inicio=params.competencia_inicio,
+                    competencia_fim=params.competencia_fim,
+                    anos=anos,
+                    output_dir=output_dir
+                )
+                
+                async_jobs[job_id].update({
+                    "status": "completed", 
+                    "end_time": datetime.now().isoformat(),
+                    "output_dir": output_dir,
+                    "anos_processados": anos
+                })
+            except Exception as e:
+                logging.error(f"Erro na análise de procedimentos: {str(e)}", exc_info=True)
+                async_jobs[job_id].update({
+                    "status": "error",
+                    "error": str(e),
+                    "end_time": datetime.now().isoformat()
+                })
+        
+        background_tasks.add_task(task_processor)
+        return {"job_id": job_id, "status_url": f"/query/jobs/{job_id}"}
+
 @app.get("/query/jobs/{job_id}", tags=["Async Operations"])
+
 async def get_job_status(job_id: str):
     if job_id not in async_jobs:
         raise HTTPException(status_code=404, detail=f"Job {job_id} não encontrado")
@@ -999,16 +619,27 @@ def build_conversion_query(grupo: str, columns: list) -> str:
     schema = GRUPOS_INFO[grupo]['colunas']
     selects = []
     
+    # Lista de prefixos de colunas que devem ser mantidas como TEXT para preservar zeros à esquerda
+    colunas_codigo = ['proc_', 'pa_codpro', 'pa_coduni', 'sp_procrea', 'sp_cnes',  'sp_atoprof']
+    
     for col in columns:
         col_lower = col.lower()  # Normaliza para minúsculas
         dtype = schema.get(col_lower, 'TEXT')  # Usa TEXT como fallback
         
-        # Expressão de conversão principal
-        conversion_expr = f"TRY_CAST({col} AS {dtype}) AS {col}"
+        # Verifica se a coluna contém códigos que devem preservar zeros à esquerda
+        is_codigo_column = any(col_lower.startswith(prefix) for prefix in colunas_codigo)
+        
+        # Se for coluna de código com zeros à esquerda, força para TEXT
+        if is_codigo_column and 'NUMERIC' in dtype:
+            logging.info(f"Preservando zeros à esquerda em {col} - usando TEXT ao invés de {dtype}")
+            conversion_expr = f"{col}::STRING AS {col}"
+        else:
+            # Expressão de conversão principal para outros tipos
+            conversion_expr = f"TRY_CAST({col} AS {dtype}) AS {col}"
         
         # Expressão de erro
         error_conditions = []
-        if 'NUMERIC' in dtype:
+        if 'NUMERIC' in dtype and not is_codigo_column:
             error_conditions.append(f"{col}::STRING ~ '[^0-9]'")  # Caracteres não numéricos
         elif 'DATE' in dtype:
             error_conditions.append(f"strptime({col}, '%Y%m%d') IS NULL")  # Formato inválido
@@ -1017,7 +648,7 @@ def build_conversion_query(grupo: str, columns: list) -> str:
         error_expr = f"CASE WHEN {col} IS NOT NULL AND ({error_condition}) THEN 'ERRO_TIPO' ELSE NULL END AS new_{col}_error"
         
         selects.append(f"{conversion_expr}, {error_expr}")
-        logging.info(f"Conversão aplicada: {col} -> {dtype}")
+        logging.info(f"Conversão aplicada: {col} -> {dtype if not is_codigo_column else 'TEXT (preservando zeros)'}")
 
     return ", ".join(selects)
 
@@ -1230,18 +861,6 @@ def validate_csv_sample(csv_path: str, table_name: str) -> bool:
     except Exception as e:
         logging.error(f"Falha na validação: {str(e)}")
         return False
-
-class Settings(BaseSettings):
-    db_name: str = Field(..., env="DB_NAME")
-    db_user: str = Field(..., env="DB_USER")
-    db_pass: str = Field(..., env="DB_PASS")
-    db_host: str = Field(..., env="DB_HOST")
-    db_port: int = Field(..., env="DB_PORT")
-    
-    model_config = ConfigDict(
-        env_file=".env",
-        extra="ignore"
-    )
 
 settings = Settings()
 

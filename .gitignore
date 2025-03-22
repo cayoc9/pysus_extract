@@ -87,6 +87,10 @@ celerybeat-schedule
 /parquet_files
 /Analises/pysus_sih
 /consultas
+/docs/consultas
 
 # Temporarios
 arvore.txt
+parquet_files_backup.tar.zst
+relatorios/
+teste_relatorios/
