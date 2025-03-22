@@ -88,6 +88,7 @@ celerybeat-schedule
 /Analises/pysus_sih
 /consultas
 /docs/consultas
+/docs/tb_procedimento.md
 
 # Temporarios
 arvore.txt
