@@ -5,13 +5,13 @@ import glob
 def parse_procedimentos(procedimentos_dir, layouts_dir):
     """
     Extrai códigos e nomes de procedimentos usando os layouts correspondentes
-    com correspondência exata de períodos
+    com correspondência exata de períodos, para arquivos em formato TXT
     """
     procedimentos_dict = {}
     
     # Mapeamento de layouts por período
     layouts = {}
-    layout_files = glob.glob(os.path.join(layouts_dir, "tb_procedimento_*.md"))
+    layout_files = glob.glob(os.path.join(layouts_dir, "tb_procedimento_*.txt"))
     
     if not layout_files:
         print(f"Aviso: Nenhum arquivo de layout encontrado em {layouts_dir}")
@@ -27,7 +27,7 @@ def parse_procedimentos(procedimentos_dir, layouts_dir):
     print(f"Layouts carregados para os períodos: {', '.join(layouts.keys())}")
 
     # Processa cada arquivo de procedimento com seu layout correspondente
-    procedimento_files = glob.glob(os.path.join(procedimentos_dir, "tb_procedimento_*.md"))
+    procedimento_files = glob.glob(os.path.join(procedimentos_dir, "tb_procedimento_*.txt"))
     
     if not procedimento_files:
         print(f"Aviso: Nenhum arquivo de procedimentos encontrado em {procedimentos_dir}")
@@ -63,7 +63,7 @@ def parse_procedimentos(procedimentos_dir, layouts_dir):
 def extrair_periodo(arquivo_path):
     """Extrai o período no formato AAAAMM do nome do arquivo"""
     nome_arquivo = os.path.basename(arquivo_path)
-    match = re.search(r'tb_procedimento_(\d{6})\.md', nome_arquivo)
+    match = re.search(r'tb_procedimento_(\d{6})\.txt', nome_arquivo)
     return match.group(1) if match else None
 
 def carregar_layout(layout_file):
@@ -115,39 +115,52 @@ def processar_arquivo(arquivo, layout, procedimentos_dict, periodo):
     nome_end = layout['NO_PROCEDIMENTO']['end']
     
     total_procedimentos = 0
-    procedimentos_invalidos = 0
+    procedimentos_validos = 0
     
-    with open(arquivo, 'r', encoding='utf-8') as f:
-        linhas = f.readlines()
-        
-        for i, line in enumerate(linhas):
-            # Ignora linhas muito curtas
-            if len(line) <= cod_start:
-                continue
-                
-            # Extrai código e nome conforme layout
-            codigo = line[cod_start:cod_end].strip() if len(line) > cod_end else ""
-            nome = line[nome_start:nome_end].strip() if len(line) > nome_start else ""
-            
-            # Se o código é válido mas o nome está incompleto (cortado pela quebra de linha),
-            # verifica se a próxima linha contém continuação do nome
-            if len(codigo) == 10 and codigo.isdigit() and not nome:
-                if i + 1 < len(linhas) and len(linhas[i + 1]) > nome_start:
-                    possivel_continuacao = linhas[i + 1][nome_start:nome_end].strip()
-                    if possivel_continuacao and not possivel_continuacao[0].isdigit():
-                        nome = possivel_continuacao
-            
-            # Verifica se é um código válido (10 dígitos numéricos)
-            if len(codigo) == 10 and codigo.isdigit():
-                total_procedimentos += 1
-                if nome:
-                    salvar_procedimento(codigo, nome, procedimentos_dict, periodo)
-                else:
-                    procedimentos_invalidos += 1
-                    print(f"Aviso: Procedimento sem nome encontrado - Código: {codigo} (linha {i+1} em {arquivo})")
+    # Tentamos diferentes codificações para lidar com caracteres especiais
+    codificacoes = ['utf-8', 'latin1', 'iso-8859-1', 'cp1252']
     
-    if procedimentos_invalidos > 0:
-        print(f"Atenção: {procedimentos_invalidos} de {total_procedimentos} procedimentos foram ignorados por falta de nome em {arquivo}")
+    for codificacao in codificacoes:
+        try:
+            with open(arquivo, 'r', encoding=codificacao) as f:
+                for line_num, line in enumerate(f, 1):
+                    # Ignora linhas muito curtas
+                    if len(line) <= cod_start:
+                        continue
+                        
+                    # Extrai código conforme layout
+                    if len(line) > cod_end:
+                        codigo = line[cod_start:cod_end].strip()
+                    else:
+                        continue
+                    
+                    # Extrai nome conforme layout
+                    if len(line) > nome_start:
+                        nome_fim = min(nome_end, len(line))
+                        nome = line[nome_start:nome_fim].strip()
+                    else:
+                        nome = ""
+                    
+                    # Verifica se é um código válido (10 dígitos numéricos)
+                    if len(codigo) == 10 and codigo.isdigit():
+                        total_procedimentos += 1
+                        if nome:
+                            salvar_procedimento(codigo, nome, procedimentos_dict, periodo)
+                            procedimentos_validos += 1
+                        else:
+                            print(f"Aviso: Procedimento sem nome encontrado - Código: {codigo} (linha {line_num} em {arquivo})")
+            
+            # Se conseguimos ler o arquivo com esta codificação, não tentamos outras
+            print(f"Arquivo {arquivo} processado com codificação {codificacao}")
+            break
+        except UnicodeDecodeError:
+            # Se falhar, tentamos a próxima codificação
+            if codificacao == codificacoes[-1]:
+                print(f"Erro: Não foi possível decodificar o arquivo {arquivo} com nenhuma codificação suportada")
+                return
+    
+    print(f"Total de procedimentos no arquivo {arquivo}: {total_procedimentos}")
+    print(f"Procedimentos válidos extraídos: {procedimentos_validos}")
 
 def salvar_procedimento(codigo, nome, procedimentos_dict, periodo):
     """Adiciona procedimento ao dicionário com validação temporal"""
@@ -190,6 +203,16 @@ def limpar_nome(nome):
     nome = nome.replace("NAATENÇÃO", "NA ATENÇÃO")
     nome = nome.replace("EMGRUPO", "EM GRUPO")
     
+    # Corrige casos de caracteres especiais mal codificados
+    nome = nome.replace("��", "Ç")
+    nome = nome.replace("�", "Ã")
+    nome = nome.replace("�", "Ç")
+    nome = nome.replace("�", "Á")
+    nome = nome.replace("�", "É")
+    nome = nome.replace("�", "Í")
+    nome = nome.replace("�", "Ó")
+    nome = nome.replace("�", "Ú")
+    
     # Corrige outros problemas comuns
     nome = nome.replace("(CADA", "(CADA FRASCO)")
     
@@ -213,9 +236,9 @@ def update_definitions_file(procedimentos_dict, definitions_path):
     new_dict_text = "# Mapeamento de códigos de procedimento para nomes\nprocedimentos_dict = {\n"
     
     # Adiciona cada procedimento ao dicionário
-    for codigo, nome in sorted(procedimentos_dict.items()):
+    for codigo, info in sorted(procedimentos_dict.items()):
         # Limpa qualquer caractere problemático do nome
-        nome_limpo = nome.replace('"', '\\"').strip()
+        nome_limpo = info['nome'].replace('"', '\\"').strip()
         new_dict_text += f'    "{codigo}": "{nome_limpo}",\n'
     
     # Fecha o dicionário
@@ -265,8 +288,8 @@ def verificar_procedimentos(procedimentos_dict):
         print(f"Análise de qualidade: {nomes_vazios} nomes vazios, {nomes_curtos} nomes curtos, {nomes_longos} nomes longos")
 
 if __name__ == "__main__":
-    procedimentos_dir = "docs/procedimentos/"
-    layouts_dir = "docs/procedimentos_layout/"
+    procedimentos_dir = "docs/txt/resultados_2024/"
+    layouts_dir = "docs/txt/resultados_layout_2024/"
     definitions_path = "api/definitions.py"
     
     if not os.path.exists(procedimentos_dir):
