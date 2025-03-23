@@ -87,6 +87,8 @@ celerybeat-schedule
 /parquet_files
 /Analises/pysus_sih
 /consultas
+/Analises/relatorios
+
 
 # Temporarios
 arvore.txt
