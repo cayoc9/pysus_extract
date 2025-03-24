@@ -4963,8 +4963,8 @@ GRUPOS_INFO = {
             "val_tot": "NUMERIC(15,2)",  # Padronizado precisão
             "val_uti": "NUMERIC(15,2)",
             "us_tot": "NUMERIC(15,2)",  # Aumentada precisão
-            "dt_inter": "DATE",
-            "dt_saida": "DATE",
+            "dt_inter": "NUMERIC(15,0)",
+            "dt_saida": "NUMERIC(15,0)",
             "diag_princ": "TEXT",
             "diag_secun": "TEXT",
             "ind_vdrl": "TEXT",  # Alterado para TEXT (indicador)
@@ -5080,8 +5080,8 @@ GRUPOS_INFO = {
             "val_ortp": "NUMERIC(10,2)",  # Numérico 10,2 decimais
             "val_sangue": "NUMERIC(10,2)",  # Numérico 10,2 decimais
             "val_tot": "NUMERIC(10,2)",  # Numérico 10,2 decimais
-            "dt_inter": "DATE",  # Data AAAAMMDD
-            "dt_saida": "DATE",  # Data AAAAMMDD
+            "dt_inter": "NUMERIC(15,0)",  # Data AAAAMMDD
+            "dt_saida": "NUMERIC(15,0)",  # Data AAAAMMDD
             "diag_princ": "TEXT",  # Texto 4 caracteres (CID-10)
             "diag_secun": "TEXT",  # Texto 4 caracteres (CID-10)
             "morte": "SMALLINT",  # Numérico 1 dígito
@@ -5150,8 +5150,8 @@ GRUPOS_INFO = {
             "aih": "NUMERIC(13,0)",     # Numérico 13 dígitos (N_AIH)
             "ano": "NUMERIC(4,0)",        # Numérico 4 dígitos (ano)
             "mes": "NUMERIC(2,0)",        # Numérico 2 dígitos (01-12)
-            "dt_inter": "DATE",           # Data no formato DATE (AAAAMMDD)
-            "dt_saida": "DATE",           # Data no formato DATE (AAAAMMDD)
+            "dt_inter": "NUMERIC(13,0)",           # Data no formato DATE (AAAAMMDD)
+            "dt_saida": "NUMERIC(13,0)",           # Data no formato DATE (AAAAMMDD)
             "mun_mov": "NUMERIC(6,0)",    # Código IBGE 6 dígitos
             "uf_zi": "NUMERIC(2,0)",      # Código UF 2 dígitos
             "mun_res": "NUMERIC(6,0)",    # Código IBGE 6 dígitos
