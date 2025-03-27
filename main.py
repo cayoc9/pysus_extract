@@ -98,7 +98,7 @@ def get_parquet_files(base: str, grupo: str, comp_inicio: str, comp_fim: str) ->
     logging.info(f"Total de arquivos coletados: {len(files)}")
     log_execution("Finalizada busca de arquivos Parquet", False)
     return files
-
+ 
 def get_schema_info(grupo: str) -> dict:
     grupo = grupo.strip().upper()
     if grupo in GRUPOS_INFO:
