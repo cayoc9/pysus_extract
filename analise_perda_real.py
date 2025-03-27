@@ -11,6 +11,10 @@ from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 import gc
 
+# Importações do projeto
+from api.definitions import QueryParams
+from api.utils import get_parquet_files, process_data
+
 # Configurações globais
 warnings.filterwarnings('ignore')
 logging.basicConfig(level=logging.INFO)
@@ -18,7 +22,7 @@ logging.basicConfig(level=logging.INFO)
 def carregar_dados_parquet(base: str, grupo: str, cnes_list: List[str], 
                          competencia_inicio: str, competencia_fim: str) -> pd.DataFrame:
     """
-    Carrega dados dos arquivos parquet usando as funções de main.py
+    Carrega dados dos arquivos parquet usando as funções de api.utils
     
     Args:
         base: SIH (Sistema de Informações Hospitalares)
@@ -30,8 +34,6 @@ def carregar_dados_parquet(base: str, grupo: str, cnes_list: List[str],
     Returns:
         DataFrame com os dados carregados
     """
-    from main import get_parquet_files, QueryParams, process_data
-    
     logging.info(f"Carregando dados para {base}/{grupo} de {competencia_inicio} a {competencia_fim}")
     
     try:

@@ -20,8 +20,8 @@ sinan = SINAN().load()
 # Definindo variáveis de configuração
 base = "SIH"
 estados = ['ES']
-anos = [2021, 2022, 2023]
-grupos = ['RD', 'RJ']  # Grupos conforme a base SIH
+anos = [2023, 2024,2025]
+grupos = ['ER']  # Grupos conforme a base SIH
 
 # Loop para cada grupo definido
 for grupo in grupos:
@@ -62,3 +62,5 @@ for grupo in grupos:
         print(f"Arquivos para o grupo '{grupo}' baixados com sucesso em: {local_dir}")
     except Exception as e:
         print(f"Erro ao processar o grupo '{grupo}': {e}")
+
+

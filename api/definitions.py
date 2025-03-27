@@ -5156,7 +5156,7 @@ GRUPOS_INFO = {
             "uf_zi": "NUMERIC(2,0)",      # Código UF 2 dígitos
             "mun_res": "NUMERIC(6,0)",    # Código IBGE 6 dígitos
             "uf_res": "NUMERIC(2,0)",     # Código UF 2 dígitos (corrigido de TEXT para numérico)
-            "co_erro": "NUMERIC(2,0)"     # Código de erro 2 dígitos (corrigido de TEXT para numérico)
+            "co_erro": "NUMERIC(6,0)"     # Código de erro 2 dígitos (corrigido de TEXT para numérico)
         }
     },
     "PA": {

@@ -14,6 +14,9 @@ from collections import defaultdict
 
 # Importações do projeto - remover importações diretas para evitar circular import
 from api.definitions import procedimentos_dict, CAMPOS_CNES, GRUPOS_INFO, MAPEAMENTO_CNES
+# Importando funções de utilidade do módulo utils
+from api.utils import get_parquet_files, process_data
+from api.definitions import QueryParams
 
 # Configurações globais
 warnings.filterwarnings('ignore')
@@ -22,7 +25,7 @@ logging.basicConfig(level=logging.INFO)
 def carregar_dados_parquet(base: str, grupo: str, cnes_list: List[str], 
                           competencia_inicio: str, competencia_fim: str) -> pd.DataFrame:
     """
-    Carrega dados dos arquivos parquet usando as funções de main.py
+    Carrega dados dos arquivos parquet usando as funções de api.utils
     
     Args:
         base: SIH ou SIA
@@ -34,9 +37,7 @@ def carregar_dados_parquet(base: str, grupo: str, cnes_list: List[str],
     Returns:
         DataFrame com os dados carregados
     """
-    # Importações movidas para dentro da função para evitar circular import
-    from main import get_parquet_files, QueryParams, process_data
-    
+    # Usando as funções importadas de api.utils
     logging.info(f"Carregando dados para {base}/{grupo} de {competencia_inicio} a {competencia_fim}")
     
     try:
